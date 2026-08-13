@@ -9,3 +9,9 @@ psycopg[binary]==3.2.13
 python-dotenv==1.0.1
 gunicorn==23.0.0
 weasyprint==69.0
+# Pillow arrives transitively via WeasyPrint, but photos.py imports it
+# directly — pin it so a WeasyPrint change cannot silently drop it.
+Pillow==12.3.0
+# Recipe-from-photo transcription. Only imported by the import route.
+anthropic==0.116.0
+pydantic==2.12.3

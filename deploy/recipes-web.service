@@ -36,12 +36,15 @@ Restart=on-failure
 RestartSec=3
 TimeoutStopSec=20
 
-# Hardening. The app needs no write access anywhere outside its runtime dir.
+# Hardening. The app writes only to its runtime dir and the upload store.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/run/recipes
+# Uploaded photos. Without this, ProtectSystem=strict makes the whole
+# filesystem read-only and every upload fails with EROFS at write time —
+# after the form has already validated, which reads as a server bug.
+ReadWritePaths=/run/recipes /var/lib/recipes
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

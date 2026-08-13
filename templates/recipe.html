@@ -43,7 +43,7 @@
             <svg class="ico ico--xs" aria-hidden="true"><use href="#i-printer"></use></svg>
             Print / Save PDF
           </a>
-          {% if recipe.owned_by(current_user) %}
+          {% if is_admin %}
             <a class="btn btn--ghost btn--sm" href="{{ url_for('main.edit_recipe', recipe_id=recipe.id) }}">
               <svg class="ico ico--xs" aria-hidden="true"><use href="#i-edit"></use></svg> Edit
             </a>
@@ -62,8 +62,8 @@
       </div>
 
       <div class="recipe-head-media">
-        {% if recipe.image_file %}
-          <img src="{{ recipe.image_file|static_v }}" alt="{{ recipe.title }}"
+        {% if recipe.photo_url %}
+          <img src="{{ recipe.photo_url }}" alt="{{ recipe.title }}"
                width="560" height="420" decoding="async">
         {% else %}
           <span class="img-placeholder img-placeholder--detail">

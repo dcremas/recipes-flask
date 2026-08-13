@@ -1,6 +1,7 @@
-{# Nav mirrors the original menu: Homepage, Recipes, Recipes Table, Create
-   Recipe, Create Account, Login, Logout — but the auth items now reflect state
-   rather than showing "Logout" to signed-out visitors. #}
+{# Home, Recipes, Table for everyone. The original also advertised Create
+   Account and Login to every visitor; there is nothing for a visitor to sign in
+   to now, so the auth items only appear once someone actually is signed in.
+   /login is still reachable directly — it is unlinked, not removed. #}
 <header class="site-header" id="site-header">
   <div class="container header-inner">
     <a class="brand" href="{{ url_for('main.home') }}">
@@ -22,17 +23,14 @@
         <li><a href="{{ url_for('main.recipes') }}"{% if request.endpoint == 'main.recipes' %} aria-current="page"{% endif %}>Recipes</a></li>
         <li><a href="{{ url_for('main.recipes_table') }}"{% if request.endpoint == 'main.recipes_table' %} aria-current="page"{% endif %}>Table</a></li>
 
+        {% if is_admin %}
+          <li><a href="{{ url_for('main.manage') }}"{% if request.endpoint == 'main.manage' %} aria-current="page"{% endif %}>Manage</a></li>
+        {% endif %}
         {% if current_user.is_authenticated %}
-          <li><a href="{{ url_for('main.create_recipe') }}">Add recipe</a></li>
           <li class="nav-user">
             <span class="nav-who" title="Signed in as {{ current_user.username }}">{{ current_user.username }}</span>
             <a class="nav-signout" href="{{ url_for('main.logout') }}">Log out</a>
           </li>
-        {% else %}
-          <li><a href="{{ url_for('main.login') }}">Log in</a></li>
-          {% if config.REGISTRATION_OPEN %}
-            <li><a class="nav-cta" href="{{ url_for('main.register') }}">Create account</a></li>
-          {% endif %}
         {% endif %}
       </ul>
     </nav>

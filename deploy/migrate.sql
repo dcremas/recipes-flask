@@ -43,4 +43,14 @@ CREATE INDEX IF NOT EXISTS ix_recipes_author_id ON recipes (author_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_authors_email_lower    ON authors (lower(email));
 CREATE UNIQUE INDEX IF NOT EXISTS ux_authors_username_lower ON authors (lower(username));
 
+-- 6. Uploaded photo, stored as a bare filename inside UPLOAD_DIR — never a path,
+--    so a stored value can never escape that directory.
+--
+--    A column rather than the old slug-derived lookup: deriving the filename
+--    from the title meant renaming a recipe silently orphaned its photo, and two
+--    recipes whose titles slugify alike ("Mac & Cheese" / "Mac Cheese") collided
+--    on one file. NULL means "no upload" — the bundled static/img/recipes photo
+--    is then used if one exists, so nothing that renders today stops rendering.
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_filename varchar(255);
+
 COMMIT;

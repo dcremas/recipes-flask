@@ -1,8 +1,8 @@
 """Recipes — a family recipe collection.
 
 Rebuilt from the Heroku app (recipes-heroku) for self-hosting on EC2 behind
-nginx. Same feature set, plus author-scoped edit/delete, and a rewrite of the
-parts that could throw.
+nginx, and since narrowed to a single-author site: the collection is public to
+read and print, and only the admin can add, edit or delete.
 
 Structure mirrors prosite_flask: an application factory, content in content.py,
 models/forms/routes in their own modules. Run with gunicorn in production; the
@@ -19,7 +19,6 @@ from dotenv import load_dotenv
 from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import event
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
@@ -73,11 +72,45 @@ def create_app(config: dict | None = None) -> Flask:
         SESSION_COOKIE_SAMESITE="Lax",
         # nginx terminates TLS; mark cookies secure only when that is true.
         SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "1") != "0",
-        MAX_CONTENT_LENGTH=1 * 1024 * 1024,
-        REGISTRATION_OPEN=os.getenv("REGISTRATION_OPEN", "1") != "0",
+        # 1 MB was fine for text-only forms; a phone photo of a recipe card is
+        # routinely 4-8 MB. The upload path re-encodes and downsizes, so this
+        # only bounds what the socket will accept.
+        MAX_CONTENT_LENGTH=12 * 1024 * 1024,
+        # The one account allowed to add, edit or delete. Compared lowercase
+        # against Authors.email; see Authors.is_admin.
+        ADMIN_EMAIL=(os.getenv("ADMIN_EMAIL") or "").strip().lower(),
+        # Uploaded photos live OUTSIDE the application tree, deliberately:
+        #   * the systemd unit sets ProtectHome=read-only, so the app cannot
+        #     write anywhere under /home/ec2-user/recipes_flask at all; and
+        #   * deploy.sh rsyncs with --delete, so anything it could write under
+        #     static/ would be erased by the next deploy.
+        # Both failure modes are silent, which is why this is not a static/ path.
+        UPLOAD_DIR=os.getenv("UPLOAD_DIR") or "",
+        ANTHROPIC_API_KEY=(os.getenv("ANTHROPIC_API_KEY") or "").strip(),
+        IMPORT_MODEL=os.getenv("IMPORT_MODEL") or "claude-opus-5",
     )
     if config:
         app.config.update(config)
+
+    if not app.config["ADMIN_EMAIL"]:
+        # Fail closed rather than loud: with no admin nobody can author, but the
+        # public site — which is the whole point — keeps serving. Warning only,
+        # because taking the site down over this would be the worse outcome.
+        app.logger.warning("ADMIN_EMAIL unset — authoring is disabled for every account.")
+
+    # Default the upload directory to the instance folder so `flask run` works
+    # with no configuration; production points it at /var/lib/recipes/uploads.
+    if not app.config["UPLOAD_DIR"]:
+        app.config["UPLOAD_DIR"] = os.path.join(app.instance_path, "uploads")
+    try:
+        os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
+    except OSError as exc:
+        # Don't refuse to boot: the public site does not need to write photos.
+        # Uploads will fail loudly at the point of use instead.
+        app.logger.error("UPLOAD_DIR %s is not usable: %s", app.config["UPLOAD_DIR"], exc)
+
+    if not app.config["ANTHROPIC_API_KEY"]:
+        app.logger.warning("ANTHROPIC_API_KEY unset — 'import from photo' is disabled.")
 
     if not app.config["SQLALCHEMY_DATABASE_URI"]:
         raise RuntimeError("DATABASE_URL (or EXTERNAL_URL) must be set")
@@ -103,7 +136,17 @@ def _register_filters(app: Flask) -> None:
 
     @app.context_processor
     def inject_globals():
-        return {"site": SITE, "year": datetime.now(timezone.utc).year}
+        from flask_login import current_user
+
+        return {
+            "site": SITE,
+            "year": datetime.now(timezone.utc).year,
+            # Every authoring control in the templates keys off this one flag, so
+            # there is a single place to get it wrong. getattr keeps it False for
+            # anonymous visitors, whose proxy has no is_admin at all.
+            "is_admin": bool(getattr(current_user, "is_admin", False)),
+            "import_enabled": bool(app.config.get("ANTHROPIC_API_KEY")),
+        }
 
     @app.template_filter("static_v")
     def static_v(path: str) -> str:
@@ -118,7 +161,7 @@ def _register_errors(app: Flask) -> None:
     def forbidden(_e):
         return render_template(
             "error.html", code=403,
-            message="That recipe belongs to someone else.",
+            message="That page isn't available to your account.",
         ), 403
 
     @app.errorhandler(404)

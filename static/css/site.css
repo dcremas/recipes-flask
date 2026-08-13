@@ -422,8 +422,6 @@ p  { text-wrap: pretty; }
   box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .field textarea { resize: vertical; min-height: 120px; }
-/* Honeypot — off-screen rather than display:none, which some bots detect. */
-.field--trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 .contact-form .btn { justify-self: start; margin-top: .3rem; }
 
 /* ---------------------------------------------------------------- flashes */
@@ -662,8 +660,6 @@ p  { text-wrap: pretty; }
 .check { display: flex; align-items: center; gap: .5rem; font-weight: 500 !important; }
 .check input { width: auto; }
 .form-alt { margin-top: 1.4rem; color: var(--fg-muted); font-size: .9rem; }
-/* Honeypot: removed from view without display:none, which some bots detect. */
-.field--trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 .flash-wrap { margin-block: 1.2rem; display: grid; gap: .6rem; }
 .flash {
@@ -710,3 +706,151 @@ p  { text-wrap: pretty; }
   background: var(--bg-alt); color: var(--fg); font-size: .9rem;
 }
 .form-error .ico { color: var(--err); flex: none; }
+
+/* ------------------------------------------------------------ admin console */
+/* Everything below is admin-only UI (manage console, recipe form, importer).
+   Kept at the end of the file so the public site's styles stay in one block. */
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.manage-head {
+  display: flex; flex-wrap: wrap; gap: 1.4rem; align-items: flex-end;
+  justify-content: space-between; margin-bottom: 1.8rem;
+}
+.manage-head h1 { font-size: var(--step-2); margin: .2rem 0 .4rem; }
+.manage-head .section-tagline { margin: 0; }
+.manage-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+.manage-search {
+  display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+  margin-bottom: 1.4rem;
+}
+.manage-search .input { flex: 1 1 18rem; max-width: 26rem; }
+
+/* min-width on .data-table would force the whole console sideways on a phone;
+   the manage variant is denser, so it gets a lower floor and scrolls sooner. */
+.data-table--manage { min-width: 44rem; }
+.data-table--manage td, .data-table--manage th { vertical-align: middle; }
+.cell-thumb { width: 4.5rem; padding-right: 0; }
+.cell-muted { color: var(--fg-muted); white-space: nowrap; }
+.cell-actions { text-align: right; white-space: nowrap; }
+.cell-actions .btn { margin-left: .4rem; }
+
+.thumb {
+  width: 3.5rem; height: 3.5rem; border-radius: var(--radius-sm);
+  object-fit: cover; display: block; border: 1px solid var(--border);
+}
+.thumb--empty {
+  display: grid; place-items: center; background: var(--bg-alt);
+  color: var(--fg-faint);
+}
+
+.btn--quiet {
+  border: 1px solid transparent; background: transparent; color: var(--fg-muted);
+}
+.btn--quiet:hover { color: var(--fg); border-color: var(--border); }
+
+/* ------------------------------------------------------------- recipe form */
+.form-head {
+  display: flex; flex-wrap: wrap; gap: 1rem; align-items: baseline;
+  justify-content: space-between; margin: .4rem 0 1.6rem;
+}
+.form-head h1 { font-size: var(--step-2); margin: 0; }
+
+.recipe-form { display: grid; gap: 1.8rem; max-width: 54rem; }
+
+/* Fieldsets group the form into what-you-are-editing sections. The browser's
+   default fieldset border and padding are removed in favour of the card look
+   used elsewhere on the site. */
+.form-block {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.4rem 1.5rem 1.6rem; margin: 0; background: var(--bg-raise);
+  display: grid; gap: 1.15rem;
+}
+.form-block > legend {
+  font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--fg-muted);
+  padding: 0 .5rem; margin-left: -.5rem;
+}
+.block-help {
+  margin: -.3rem 0 0; font-size: .88rem; color: var(--fg-muted);
+  max-width: 62ch;
+}
+/* align-items: start, not the grid default of stretch. Otherwise a field whose
+   neighbour carries help text gets its input stretched to match the taller
+   cell, so Title ends up visibly deeper than Category beside it. */
+.recipe-form .field-row { gap: 1.15rem; align-items: start; }
+
+/* Photo picker: preview beside the controls, stacking on narrow screens. */
+.photo-picker {
+  display: grid; grid-template-columns: 14rem 1fr; gap: 1.4rem;
+  align-items: start;
+}
+.photo-current img,
+.photo-current .img-placeholder {
+  width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radius-sm);
+  object-fit: cover; display: block;
+}
+.img-placeholder--pick {
+  display: grid; place-items: center; gap: .3rem; background: var(--bg-alt);
+  border: 1px dashed var(--border-firm); color: var(--fg-faint);
+}
+.photo-controls { display: grid; gap: .9rem; align-content: start; }
+
+/* File inputs cannot be styled like text inputs — the button is browser
+   chrome — so only the box around it is themed. */
+.input--file {
+  padding: .55rem .6rem; font-size: .88rem; cursor: pointer;
+  background: var(--bg-alt);
+}
+.input--file::file-selector-button {
+  margin-right: .7rem; padding: .35rem .8rem; cursor: pointer;
+  border: 1px solid var(--border-firm); border-radius: var(--radius-sm);
+  background: var(--bg-raise); color: var(--fg); font: inherit; font-size: .85rem;
+}
+.input--file::file-selector-button:hover { border-color: var(--accent); color: var(--accent); }
+
+.form-actions {
+  display: flex; flex-wrap: wrap; gap: .7rem; align-items: center;
+  padding-top: .2rem;
+}
+/* display: block overrides .inline-form's `display: inline`, on which
+   margin-top, padding, border-top and max-width all have no effect — so without
+   it the separator silently vanishes and Delete crowds the Save button. */
+.form-danger-zone {
+  display: block; margin-top: 2.4rem; padding-top: 1.4rem;
+  border-top: 1px solid var(--border); max-width: 54rem;
+}
+
+/* ---------------------------------------------------------------- notices */
+.notice {
+  display: flex; gap: .85rem; padding: 1rem 1.15rem; margin-bottom: 1.6rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-alt); max-width: 54rem;
+}
+.notice p { margin: .3rem 0 0; font-size: .9rem; color: var(--fg-muted); }
+.notice .ico { flex: none; margin-top: .15rem; }
+.notice--review { border-color: var(--accent); background: var(--accent-soft); }
+.notice--review .ico { color: var(--accent); }
+.notice--review p { color: var(--fg); }
+.notice--tips { display: block; margin-top: 2.4rem; }
+.notice--tips h2 { font-size: var(--step-0); margin: 0 0 .6rem; }
+.notice--tips ul { margin: 0 0 .9rem; padding-left: 1.2rem; display: grid; gap: .35rem; }
+.notice--tips li { font-size: .9rem; color: var(--fg-muted); }
+.notice--tips .muted { font-size: .82rem; margin: 0; }
+
+.scan-preview img {
+  max-width: 100%; max-height: 22rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); display: block;
+}
+
+@media (max-width: 640px) {
+  .photo-picker { grid-template-columns: 1fr; }
+  .photo-current { max-width: 14rem; }
+  .manage-head, .form-head { flex-direction: column; align-items: stretch; }
+  .cell-actions { text-align: left; }
+  .cell-actions .btn { margin: .3rem .4rem 0 0; }
+}

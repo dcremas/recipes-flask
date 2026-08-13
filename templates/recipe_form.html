@@ -1,41 +1,146 @@
 {% extends "base.html" %}
 {% from "partials/field.html" import render, form_errors %}
 {% set editing = mode == 'edit' %}
-{% block title %}{{ 'Edit' if editing else 'Add' }} a recipe — {{ site.name }}{% endblock %}
+{% block title %}{{ 'Edit' if editing else 'New' }} recipe — {{ site.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 
 {% block content %}
 <section class="section section--page">
-  <div class="container narrow">
-    <header class="section-head">
-      <p class="eyebrow">{{ 'Edit' if editing else 'Contribute' }}</p>
-      <h2>{{ 'Edit “' ~ recipe.title ~ '”' if editing else 'Add a recipe' }}</h2>
-      <p class="section-tagline">Put each ingredient and each step on its own line — they become a checklist and numbered steps.</p>
+  <div class="container">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="{{ url_for('main.manage') }}">Manage</a>
+      <span aria-hidden="true">/</span>
+      <span>{{ 'Edit' if editing else 'New recipe' }}</span>
+    </nav>
+
+    <header class="form-head">
+      <h1>{{ 'Edit “' ~ recipe.title ~ '”' if editing else 'New recipe' }}</h1>
+      {% if not editing and import_enabled %}
+        <a class="btn btn--ghost btn--sm" href="{{ url_for('main.import_recipe') }}">
+          <svg class="ico ico--xs" aria-hidden="true"><use href="#i-camera"></use></svg>
+          Import from a photo instead
+        </a>
+      {% endif %}
     </header>
 
-    <form class="stack-form" method="post" novalidate>
+    {% if imported %}
+      {# The transcription is a draft, not a result. Say so plainly and put the
+         model's own caveat in front of the person who can check it. #}
+      <div class="notice notice--review" role="status">
+        <svg class="ico" aria-hidden="true"><use href="#i-alert"></use></svg>
+        <div>
+          <strong>Read from your photo — check it before saving.</strong>
+          <p>
+            Quantities and times are the easiest things to get wrong, especially
+            from handwriting. Nothing has been saved yet.
+            {% if imported.note %}<br><em>Noted while reading: {{ imported.note }}</em>{% endif %}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+
+    {# enctype is required for the photo field — without it the browser posts
+       filenames instead of file contents and uploads silently do nothing. #}
+    <form class="recipe-form" method="post" enctype="multipart/form-data" novalidate>
       {{ form.hidden_tag() }}
       {{ form_errors(form) }}
-      <div class="field-row">
-        {{ render(form.title) }}
-        {{ render(form.category, help='e.g. Breakfast, Italian, Mexican') }}
-      </div>
-      <div class="field-row field-row--3">
-        {{ render(form.prep_time, help='e.g. 15 minutes') }}
-        {{ render(form.cooking_time, help='e.g. 30 minutes') }}
-        {{ render(form.yield_amount, help='e.g. 4 servings') }}
-      </div>
-      {{ render(form.ingredients, rows=10, help='One ingredient per line.') }}
-      {{ render(form.instructions, rows=12, help='One step per line.') }}
-      {{ render(form.tips, rows=5, help='Optional — one tip per line.') }}
 
-      <div class="cta-row">
+      <fieldset class="form-block">
+        <legend>The basics</legend>
+        <div class="field-row">
+          {{ render(form.title) }}
+          {{ render(form.category, help='e.g. Breakfast, Italian, Dessert') }}
+        </div>
+        <div class="field-row field-row--3">
+          {{ render(form.prep_time, help='e.g. 15 minutes') }}
+          {{ render(form.cooking_time, help='e.g. 30 minutes') }}
+          {{ render(form.yield_amount, help='e.g. 4 servings') }}
+        </div>
+      </fieldset>
+
+      <fieldset class="form-block">
+        <legend>Photo</legend>
+        <p class="block-help">
+          A picture of the finished dish. Shown on the recipe page, the cards and
+          the printable PDF. Large images are resized automatically.
+        </p>
+
+        <div class="photo-picker">
+          <div class="photo-current">
+            {% if editing and recipe.photo_url %}
+              <img id="photo-preview" src="{{ recipe.photo_url }}" alt="Current photo"
+                   width="220" height="165" decoding="async">
+            {% else %}
+              <span class="img-placeholder img-placeholder--pick" id="photo-placeholder">
+                <svg class="ico" aria-hidden="true"><use href="#i-book"></use></svg>
+                <span class="img-placeholder-note">No photo</span>
+              </span>
+              <img id="photo-preview" alt="Selected photo" width="220" height="165" hidden>
+            {% endif %}
+          </div>
+
+          <div class="photo-controls">
+            <div class="field{{ ' field--error' if form.photo.errors }}">
+              {{ form.photo.label }}
+              {{ form.photo(class='input input--file', accept='image/*', id='photo-input') }}
+              {% if form.photo.errors %}
+                <p class="field-error">{{ form.photo.errors|join(' ') }}</p>
+              {% else %}
+                <p class="field-help">JPEG, PNG, WebP or HEIC.
+                  {%- if editing and recipe.photo_url %} Choosing a new file replaces the current photo.{% endif %}</p>
+              {% endif %}
+            </div>
+            {% if editing and recipe.photo_url %}
+              <label class="check">
+                {{ form.remove_photo() }} <span>{{ form.remove_photo.label.text }}</span>
+              </label>
+            {% endif %}
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-block">
+        <legend>Ingredients and method</legend>
+        <p class="block-help">
+          One ingredient and one step per line — they become a checklist and
+          numbered steps. Blank lines are ignored.
+        </p>
+        {{ render(form.ingredients, rows=12, help='One ingredient per line.') }}
+        {{ render(form.instructions, rows=14, help='One step per line.') }}
+        {{ render(form.tips, rows=5, help='Optional — one tip per line.') }}
+      </fieldset>
+
+      <div class="form-actions">
         <button class="btn btn--primary" type="submit">
           {{ 'Save changes' if editing else 'Add recipe' }}
           <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
         </button>
-        <a class="btn btn--ghost" href="{{ url_for('main.recipe', recipe_id=recipe.id) if editing else url_for('main.recipes') }}">Cancel</a>
+        <a class="btn btn--ghost"
+           href="{{ url_for('main.recipe', recipe_id=recipe.id) if editing else url_for('main.manage') }}">Cancel</a>
       </div>
     </form>
+
+    {% if editing %}
+      {# Outside the form above on purpose: nested <form> elements are invalid
+         HTML and the browser silently discards the inner one, so a delete button
+         placed inside the edit form would submit the edit instead. Delete lives
+         here as well as on the console so an edit that turns out to be a
+         deletion doesn't need a trip back. #}
+      <form class="inline-form form-danger-zone" method="post"
+            action="{{ url_for('main.delete_recipe', recipe_id=recipe.id) }}"
+            data-confirm="Delete “{{ recipe.title }}”? This cannot be undone.">
+        {# delete_form rather than a bare csrf_token() call: Flask-WTF only
+           registers that template global when CSRF is enabled, so the raw call
+           renders fine in production and raises UndefinedError under test. #}
+        {{ delete_form.hidden_tag() }}
+        <button class="btn btn--danger" type="submit">
+          <svg class="ico ico--xs" aria-hidden="true"><use href="#i-trash"></use></svg>
+          Delete this recipe
+        </button>
+      </form>
+    {% endif %}
+
   </div>
 </section>
 {% endblock %}

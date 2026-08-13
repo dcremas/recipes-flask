@@ -1,10 +1,10 @@
 {# Expects `r`. The image is only rendered when the file actually exists on
-   disk — see Recipes.image_file. Otherwise a styled placeholder stands in, so
+   disk — see Recipes.photo_url. Otherwise a styled placeholder stands in, so
    a recipe without a photo looks intentional rather than broken. #}
 <article class="recipe-card">
   <a class="recipe-card-media" href="{{ url_for('main.recipe', recipe_id=r.id) }}" tabindex="-1" aria-hidden="true">
-    {% if r.image_file %}
-      <img src="{{ r.image_file|static_v }}" alt="" loading="lazy" decoding="async" width="480" height="320">
+    {% if r.photo_url %}
+      <img src="{{ r.photo_url }}" alt="" loading="lazy" decoding="async" width="480" height="320">
     {% else %}
       <span class="img-placeholder">
         <svg class="ico" aria-hidden="true"><use href="#i-book"></use></svg>

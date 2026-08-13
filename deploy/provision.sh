@@ -10,6 +10,8 @@ set -euo pipefail
 APP=/home/ec2-user/recipes_flask
 DOMAIN=recipes.dustincremascoli.com
 ENVDIR=/etc/recipes
+# Photo uploads. Outside $APP on purpose — see photos.py.
+UPLOADS=/var/lib/recipes/uploads
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 
@@ -48,6 +50,12 @@ echo "  venv: $("$APP/.venv/bin/python" -V 2>&1)"
 "$APP/.venv/bin/pip" install --quiet -r "$APP/requirements.txt"
 chown -R ec2-user:ec2-user "$APP"
 
+say "Upload directory"
+# Owned by the service account (it writes here) and group nginx (it reads
+# here to serve /media/). Mirrors the unit's User=ec2-user / Group=nginx.
+install -d -m 0750 -o ec2-user -g nginx "$UPLOADS"
+echo "  $UPLOADS ready"
+
 say "Secrets directory"
 install -d -m 0750 -o root -g ec2-user "$ENVDIR"
 if [[ ! -f $ENVDIR/recipes.env ]]; then
@@ -57,7 +65,11 @@ if [[ ! -f $ENVDIR/recipes.env ]]; then
 DATABASE_URL=postgresql+psycopg://recipes_app:CHANGE_ME@127.0.0.1:5432/recipes
 SECRET_KEY=${SECRET}
 FLASK_ENV=production
-REGISTRATION_OPEN=1
+# The only account allowed to add, edit or delete recipes.
+ADMIN_EMAIL=CHANGE_ME
+UPLOAD_DIR=${UPLOADS}
+# Optional: enables 'import a recipe from a photo'. Leave blank to disable.
+ANTHROPIC_API_KEY=
 SESSION_COOKIE_SECURE=1
 EOF
   echo "  wrote $ENVDIR/recipes.env — set the database password in it"
@@ -99,8 +111,14 @@ server {
         access_log off;
         try_files \$uri =404;
     }
+    location /media/ {
+        alias $UPLOADS/;
+        expires 365d;
+        access_log off;
+        try_files \$uri =404;
+    }
     location = /health { proxy_pass http://recipes_app; access_log off; }
-    location ~ ^/(login|register)\$ {
+    location = /login {
         limit_req zone=recipes_auth burst=5 nodelay;
         include /etc/nginx/proxy_params_recipes.inc;
     }

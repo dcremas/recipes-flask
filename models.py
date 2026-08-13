@@ -11,7 +11,7 @@ Differences from the original models.py, all deliberate:
     `login_user(some_recipe)` type-check as valid.
   * password_hashed is 255, not 162. Werkzeug's scrypt output is exactly 162
     characters with the current defaults, i.e. zero headroom — a parameter
-    change upstream would start raising DataError on signup.
+    change upstream would start raising DataError on any set_password().
   * joined_at no longer carries onupdate. "Joined" that moves every time the
     row is touched is simply wrong.
   * The text fields are split through _lines(), which tolerates NULL and any
@@ -89,6 +89,20 @@ class Authors(UserMixin, db.Model):
             return False
         return check_password_hash(self.password_hashed, password)
 
+    @property
+    def is_admin(self) -> bool:
+        """True for the single account named by ADMIN_EMAIL.
+
+        Config rather than a column because the app connects as `recipes_app`,
+        which holds DML rights only — an is_admin column would need a migration
+        run as the database owner. Comparison is lowercase on both sides since
+        login already normalizes the address it looks up.
+        """
+        admin = (current_app.config.get("ADMIN_EMAIL") or "").strip().lower()
+        if not admin or not self.email:
+            return False
+        return self.email.strip().lower() == admin
+
 
 class Recipes(db.Model):
     __tablename__ = "recipes"
@@ -105,6 +119,9 @@ class Recipes(db.Model):
     ingredients = db.Column(db.String)
     instructions = db.Column(db.String)
     tips = db.Column(db.String)
+    # Bare filename inside UPLOAD_DIR, never a path. NULL means "no upload",
+    # in which case the bundled static/img/recipes photo is used if one exists.
+    image_filename = db.Column(db.String(255))
     timestamp = db.Column(db.DateTime, default=_utcnow, onupdate=_utcnow)
 
     def __repr__(self) -> str:
@@ -128,14 +145,17 @@ class Recipes(db.Model):
         return slugify_title(self.title)
 
     @property
-    def image_file(self) -> str | None:
-        """Photo for this recipe, or None when there isn't one.
+    def bundled_image(self) -> str | None:
+        """Legacy slug-derived photo shipped under static/img/recipes, or None.
 
-        The original derived a filename from the title and rendered it
+        The original derived this filename from the title and rendered it
         unconditionally, so "Onion Dip" pointed at a nonexistent oniondip.jpg
-        and shipped a broken image to production. Here the file is resolved
-        only if it exists on disk, and templates fall back to a CSS
-        placeholder when this returns None.
+        and shipped a broken image to production. The file is resolved only if
+        it actually exists on disk.
+
+        Still consulted so every recipe that had a photo before uploads existed
+        keeps it — but an upload always wins, and new photos never land here
+        (this directory is inside the rsync'd, read-only app tree).
         """
         slug = self.slug
         if not slug:
@@ -147,10 +167,48 @@ class Recipes(db.Model):
                 return f"img/recipes/{candidate}"
         return None
 
-    def owned_by(self, user) -> bool:
-        """True when `user` is the signed-in author of this recipe."""
-        return bool(
-            user
-            and getattr(user, "is_authenticated", False)
-            and self.author_id == user.id
-        )
+    @property
+    def photo_path(self) -> str | None:
+        """Absolute filesystem path to this recipe's photo, or None.
+
+        Used by the PDF renderer, which needs a file:// path rather than a URL
+        so rendering never depends on the site being reachable from itself.
+        """
+        if self.image_filename:
+            candidate = os.path.join(
+                current_app.config["UPLOAD_DIR"], self.image_filename
+            )
+            if os.path.isfile(candidate):
+                return candidate
+            # Row points at a file that is gone — fall through to the bundled
+            # photo rather than rendering a broken image.
+        bundled = self.bundled_image
+        if bundled:
+            return os.path.join(current_app.static_folder, *bundled.split("/")[1:])
+        return None
+
+    @property
+    def photo_url(self) -> str | None:
+        """URL for this recipe's photo, or None when it has none.
+
+        Uploads are content-addressed (the filename carries a hash of the
+        bytes), so they need no cache-busting query and a replacement photo is
+        a different URL. The bundled fallback still goes through static_v.
+        """
+        from flask import url_for
+
+        if self.image_filename:
+            if os.path.isfile(
+                os.path.join(current_app.config["UPLOAD_DIR"], self.image_filename)
+            ):
+                return url_for("main.media", filename=self.image_filename)
+        bundled = self.bundled_image
+        if bundled:
+            return url_for(
+                "static", filename=bundled, v=current_app.config.get("ASSET_V", "1")
+            )
+        return None
+
+    @property
+    def has_photo(self) -> bool:
+        return self.photo_url is not None

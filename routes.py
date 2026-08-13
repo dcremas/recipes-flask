@@ -3,13 +3,16 @@
 Every URL the Heroku app served still resolves — the renamed ones via 301, so
 existing links and bookmarks keep working:
 
-    /create_account  -> /register
     /create_recipe   -> /recipes/new
     /recipes_table   -> /recipes/table
     /<id>/           -> /recipes/<id>
 
-New in this version: edit and delete, both author-scoped and enforced on the
-server, not merely hidden in the template.
+The one exception is /create_account, which used to open a signup form. Public
+registration is gone, so it now redirects to the home page instead of 404ing an
+address that is still linked from elsewhere on the internet.
+
+Authoring is admin-only, enforced by @admin_required on the server rather than
+by hiding buttons in the template.
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ from __future__ import annotations
 import os
 import time
 from collections import defaultdict, deque
+from functools import wraps
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -29,17 +33,37 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
+from flask import send_from_directory
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy.exc import IntegrityError
 
+import photos
 from app import db, login_manager
 from content import FEATURES, HERO
-from forms import DeleteForm, LoginForm, RecipeForm, SignupForm
+from forms import DeleteForm, LoginForm, RecipeForm, ScanForm
 from models import Authors, Recipes
 
 bp = Blueprint("main", __name__)
+
+
+def admin_required(view):
+    """Login, then admin. Anything else is a 403.
+
+    Wrapping login_required rather than replacing it keeps the useful
+    distinction between the two failures: a signed-out visitor is sent to the
+    login form, a signed-in non-admin is told no.
+    """
+
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not getattr(current_user, "is_admin", False):
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
 
 
 @login_manager.user_loader
@@ -159,6 +183,22 @@ def recipe(recipe_id: int):
     return render_template("recipe.html", recipe=item, delete_form=DeleteForm())
 
 
+@bp.route("/media/<path:filename>")
+def media(filename: str):
+    """Serve an uploaded photo.
+
+    In production nginx aliases /media/ straight to UPLOAD_DIR and this never
+    runs; it exists so `flask run` works with no web server in front, and as a
+    fallback if the nginx alias is ever missing. send_from_directory rejects any
+    filename that escapes the directory, so traversal is handled for us.
+    """
+    return send_from_directory(
+        current_app.config["UPLOAD_DIR"],
+        filename,
+        max_age=31536000,  # content-addressed names: safe to cache forever
+    )
+
+
 @bp.route("/recipes/<int:recipe_id>.pdf")
 def recipe_pdf(recipe_id: int):
     """Render the recipe as a real PDF file.
@@ -225,10 +265,9 @@ def _render_pdf(item: Recipes) -> bytes:
         pdf_css = fh.read()
 
     photo_uri = None
-    if item.image_file:
-        photo_path = os.path.join(static_dir, *item.image_file.split("/"))
-        if os.path.isfile(photo_path):
-            photo_uri = Path(photo_path).as_uri()
+    photo_path = item.photo_path
+    if photo_path:
+        photo_uri = Path(photo_path).as_uri()
 
     document = None
     for base_pt, margin_mm in _FIT_STEPS:
@@ -301,50 +340,41 @@ def logout():
     return redirect(url_for("main.home"))
 
 
-@bp.route("/register", methods=["GET", "POST"])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for("main.home"))
-    if not current_app.config["REGISTRATION_OPEN"]:
-        abort(404)
-
-    form = SignupForm()
-    if form.validate_on_submit():
-        # Bots that fill the hidden field get a success page and no account.
-        # Telling them they failed only teaches them to stop filling it.
-        if form.trapped():
-            flash("Your account has been created. You can now log in.", "success")
-            return redirect(url_for("main.login"))
-
-        if _rate_limited("register", limit=5, window=3600):
-            flash("Too many sign-ups from this address. Try again later.", "error")
-            return render_template("register.html", form=form), 429
-
-        author = Authors(
-            username=form.username.data.strip(),
-            email=form.email.data.strip().lower(),
+# ---------------------------------------------------------------------------
+# Authoring — admin only
+# ---------------------------------------------------------------------------
+@bp.route("/manage")
+@admin_required
+def manage():
+    """The admin console: every recipe, with edit and delete on each row."""
+    query = (request.args.get("q") or "").strip()
+    stmt = db.select(Recipes).order_by(Recipes.title.asc())
+    if query:
+        like = f"%{query}%"
+        stmt = stmt.where(
+            db.or_(Recipes.title.ilike(like), Recipes.category.ilike(like))
         )
-        author.set_password(form.password.data)
-        db.session.add(author)
-        try:
-            db.session.commit()
-        except IntegrityError:
-            # Backstop for the gap between the form's uniqueness check and this
-            # commit. The database constraint is the real authority.
-            db.session.rollback()
-            flash("That username or email is already registered.", "error")
-            return render_template("register.html", form=form), 409
+    items = db.session.execute(stmt).scalars().all()
 
-        flash("Your account has been created. You can now log in.", "success")
-        return redirect(url_for("main.login"))
-
-    return render_template("register.html", form=form)
+    total = db.session.scalar(db.select(db.func.count()).select_from(Recipes)) or 0
+    return render_template(
+        "manage.html",
+        recipes=items,
+        total=total,
+        query=query,
+        delete_form=DeleteForm(),
+        # Counted in Python rather than SQL: "has a photo" depends on files on
+        # disk (uploads and the bundled fallbacks), which the database can't see.
+        without_photo=sum(1 for r in items if not r.has_photo),
+    )
 
 
-# ---------------------------------------------------------------------------
-# Authoring
-# ---------------------------------------------------------------------------
 def _apply(form: RecipeForm, item: Recipes) -> None:
+    """Copy validated form fields onto the row, photo included.
+
+    Returns nothing but may raise photos.PhotoError, which the callers turn into
+    a field-level error rather than a 500.
+    """
     item.title = form.title.data.strip()
     item.category = form.category.data.strip()
     item.prep_time = form.prep_time.data.strip()
@@ -354,58 +384,157 @@ def _apply(form: RecipeForm, item: Recipes) -> None:
     item.instructions = form.instructions.data
     item.tips = form.tips.data or None
 
+    upload = form.photo.data
+    # A file input that was left alone arrives as None or as an empty filename;
+    # neither should disturb the existing photo.
+    if upload and upload.filename:
+        previous = item.image_filename
+        item.image_filename = photos.save(upload.read(), item.slug)
+        # Only after the replacement is safely on disk, and only if the name
+        # actually changed — identical bytes produce the identical filename, so
+        # deleting unconditionally here would remove the photo just written.
+        if previous and previous != item.image_filename:
+            photos.delete(previous)
+    elif form.remove_photo.data and item.image_filename:
+        photos.delete(item.image_filename)
+        item.image_filename = None
+
 
 @bp.route("/recipes/new", methods=["GET", "POST"])
-@login_required
+@admin_required
 def create_recipe():
     form = RecipeForm()
+    # Populated by the import flow below: the extraction is held in the session
+    # and used to seed the form on the first GET, never written straight to the
+    # database. A transcription has to be looked at before it is trusted.
+    imported = None
+    if request.method == "GET":
+        imported = session.pop("imported_recipe", None)
+        if imported:
+            form = RecipeForm(data=imported["fields"])
+
     if form.validate_on_submit():
         item = Recipes(author_id=current_user.id)
-        _apply(form, item)
+        try:
+            _apply(form, item)
+        except photos.PhotoError as exc:
+            form.photo.errors.append(str(exc))
+            return render_template("recipe_form.html", form=form, mode="new"), 400
         db.session.add(item)
         db.session.commit()
         flash(f"“{item.title}” has been added.", "success")
         return redirect(url_for("main.recipe", recipe_id=item.id))
-    return render_template("recipe_form.html", form=form, mode="new")
+    return render_template("recipe_form.html", form=form, mode="new", imported=imported)
 
 
 @bp.route("/recipes/<int:recipe_id>/edit", methods=["GET", "POST"])
-@login_required
+@admin_required
 def edit_recipe(recipe_id: int):
     item = db.session.get(Recipes, recipe_id)
     if item is None:
         abort(404)
-    # Ownership is enforced here, not by hiding the button in the template.
-    if not item.owned_by(current_user):
-        abort(403)
 
     form = RecipeForm(obj=item)
     if form.validate_on_submit():
-        _apply(form, item)
+        try:
+            _apply(form, item)
+        except photos.PhotoError as exc:
+            form.photo.errors.append(str(exc))
+            return (
+                render_template(
+                    "recipe_form.html", form=form, mode="edit", recipe=item,
+                    delete_form=DeleteForm(),
+                ),
+                400,
+            )
         db.session.commit()
         flash(f"“{item.title}” has been updated.", "success")
         return redirect(url_for("main.recipe", recipe_id=item.id))
-    return render_template("recipe_form.html", form=form, mode="edit", recipe=item)
+    return render_template(
+        "recipe_form.html", form=form, mode="edit", recipe=item,
+        delete_form=DeleteForm(),
+    )
 
 
 @bp.route("/recipes/<int:recipe_id>/delete", methods=["POST"])
-@login_required
+@admin_required
 def delete_recipe(recipe_id: int):
     item = db.session.get(Recipes, recipe_id)
     if item is None:
         abort(404)
-    if not item.owned_by(current_user):
-        abort(403)
 
     form = DeleteForm()
     if not form.validate_on_submit():
         abort(400)
 
     title = item.title
+    orphan = item.image_filename
     db.session.delete(item)
     db.session.commit()
+    # Only after the row is gone, so a failed commit cannot leave a recipe
+    # pointing at a photo that no longer exists.
+    photos.delete(orphan)
     flash(f"“{title}” has been deleted.", "success")
-    return redirect(url_for("main.recipes"))
+    return redirect(url_for("main.manage"))
+
+
+# ---------------------------------------------------------------------------
+# Import a recipe from a photograph
+# ---------------------------------------------------------------------------
+@bp.route("/recipes/import", methods=["GET", "POST"])
+@admin_required
+def import_recipe():
+    """Transcribe a photo of a recipe, then hand it to the form for review.
+
+    Nothing is saved here. The extraction goes into the session and the admin is
+    redirected to the normal create form with the fields pre-filled, so every
+    imported recipe passes through the same validation and the same human read as
+    one typed by hand.
+    """
+    import importer
+
+    form = ScanForm()
+    if not importer.available():
+        # Configuration, not a permission problem — say which is missing.
+        flash("Photo import needs ANTHROPIC_API_KEY set on the server.", "error")
+        return render_template("import.html", form=form, enabled=False), 503
+
+    if form.validate_on_submit():
+        if _rate_limited("import", limit=20, window=3600):
+            flash("That's a lot of imports at once. Try again in a little while.", "error")
+            return render_template("import.html", form=form, enabled=True), 429
+
+        try:
+            # Normalized first: it caps the resolution (so the API bill is
+            # predictable), strips EXIF, and rejects anything that isn't an
+            # image before it is sent anywhere.
+            image = photos.normalize(form.scan.data.read())
+        except photos.PhotoError as exc:
+            form.scan.errors.append(str(exc))
+            return render_template("import.html", form=form, enabled=True), 400
+
+        try:
+            extracted = importer.extract(image)
+        except importer.ImportError_ as exc:
+            flash(str(exc), "error")
+            return render_template("import.html", form=form, enabled=True), 502
+
+        if extracted.unreadable:
+            flash(
+                "That photo couldn't be read reliably"
+                + (f": {extracted.note}" if extracted.note else "")
+                + ". Try again with more light, or straighten and crop the page.",
+                "error",
+            )
+            return render_template("import.html", form=form, enabled=True), 422
+
+        session["imported_recipe"] = {
+            "fields": importer.to_form_data(extracted),
+            "note": extracted.note,
+        }
+        return redirect(url_for("main.create_recipe"))
+
+    return render_template("import.html", form=form, enabled=True)
 
 
 # ---------------------------------------------------------------------------
@@ -422,7 +551,10 @@ def health():
 
 @bp.route("/create_account")
 def legacy_create_account():
-    return redirect(url_for("main.register"), code=301)
+    """Signup is gone. 302, not 301: a permanent redirect would be cached by
+    browsers and proxies forever, which is the wrong promise for a decision that
+    could be reversed."""
+    return redirect(url_for("main.home"))
 
 
 @bp.route("/create_recipe")

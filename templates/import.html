@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "partials/field.html" import form_errors %}
+{% block title %}Import a recipe from a photo — {{ site.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<section class="section section--page">
+  <div class="container narrow">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="{{ url_for('main.manage') }}">Manage</a>
+      <span aria-hidden="true">/</span>
+      <span>Import from a photo</span>
+    </nav>
+
+    <header class="section-head">
+      <p class="eyebrow">Admin</p>
+      <h1>Import from a photo</h1>
+      <p class="section-tagline">
+        Photograph a recipe card, a cookbook page or a printout and it will be
+        read into the form for you — so you can check it and save, rather than
+        typing it out.
+      </p>
+    </header>
+
+    {% if not enabled %}
+      <p class="empty-state">
+        This needs <code>ANTHROPIC_API_KEY</code> set in
+        <code>/etc/recipes/recipes.env</code>, then a service restart.
+        <a href="{{ url_for('main.create_recipe') }}">Add a recipe by hand instead.</a>
+      </p>
+    {% else %}
+      <form class="stack-form" method="post" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form_errors(form) }}
+
+        <div class="field{{ ' field--error' if form.scan.errors }}">
+          {{ form.scan.label }}
+          {# capture="environment" opens the rear camera directly on a phone,
+             which is how this will mostly be used. Desktop browsers ignore it. #}
+          {{ form.scan(class='input input--file', accept='image/*',
+                       capture='environment', id='scan-input') }}
+          {% if form.scan.errors %}
+            <p class="field-error">{{ form.scan.errors|join(' ') }}</p>
+          {% else %}
+            <p class="field-help">One recipe per photo. JPEG, PNG, WebP or HEIC.</p>
+          {% endif %}
+        </div>
+
+        <div class="scan-preview" id="scan-preview" hidden>
+          <img id="scan-preview-img" alt="The photo you selected">
+        </div>
+
+        <button class="btn btn--primary" type="submit" data-busy="Reading the photo…">
+          Read the recipe
+          <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+        </button>
+      </form>
+
+      <div class="notice notice--tips">
+        <h2>Getting a clean read</h2>
+        <ul>
+          <li>Fill the frame with the page and keep it square-on rather than at an angle.</li>
+          <li>Bright, even light — a hard shadow across the text reads worse than dim light.</li>
+          <li>If a recipe runs over two pages, import one and paste the rest into the form.</li>
+          <li>Handwriting works, but check the quantities afterwards. It will tell you when it's unsure.</li>
+        </ul>
+        <p class="muted">
+          The photo is sent to Anthropic's API to be transcribed and is not stored
+          on the server. Nothing is saved to the collection until you review the
+          result and press Add recipe.
+        </p>
+      </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

@@ -3,6 +3,10 @@
 Wording carried over from the original recipes-heroku home page, with the
 typos fixed ("their are" -> "there are", "worthly" -> "worthy",
 "accompanyment" -> "accompaniment", "homeade" -> "homemade").
+
+Every invitation to sign up and contribute has since been removed. The site is
+read-and-print for visitors and authored only by the admin, so copy promising
+otherwise was pointing at a door that is no longer there.
 """
 
 SITE = {
@@ -12,7 +16,7 @@ SITE = {
     "title": "Recipes — Dustin Cremascoli and Family",
     "description": (
         "A free and full repository of our family's favorite and best recipes. "
-        "Browse, print or contribute your own."
+        "Browse any of them, and print the ones you want to cook."
     ),
     "url": "https://recipes.dustincremascoli.com",
     "main_site": "https://www.dustincremascoli.com",
@@ -30,10 +34,9 @@ HERO = {
     "greeting": "Hi, I'm Dustin Cremascoli — and this is my recipe site.",
     "lede": "A free and full repository of our family's favorite and best recipes.",
     "body": (
-        "Feel free to browse, print and use any recipe you see here. If you have "
-        "a good recipe to contribute, create an account and post it for the "
-        "collection. This is meant to be a free spot to discover, use and share "
-        "our favorites."
+        "Feel free to browse, print and use any recipe you see here. Nothing is "
+        "gated and nothing needs an account — this is meant to be a free spot to "
+        "discover and use our favorites."
     ),
 }
 
@@ -47,14 +50,14 @@ FEATURES = [
         "icon": "printer",
         "title": "Take a recipe",
         "body": (
-            "You don't need an account to view a recipe or print it — every recipe "
-            "page has a print-friendly layout built in."
+            "Every recipe page produces a clean one-page PDF, ready to print or "
+            "save and take into the kitchen."
         ),
     },
     {
-        "icon": "share",
-        "title": "Share a recipe",
-        "body": "If you have a favorite recipe that's worthy, create an account and share it with the family.",
+        "icon": "list",
+        "title": "Find it fast",
+        "body": "Filter by category, or switch to the table view to size up the whole collection at once.",
     },
     {
         "icon": "chat",

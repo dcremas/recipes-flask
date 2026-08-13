@@ -104,3 +104,54 @@
     }
   });
 })();
+
+/* ------------------------------------------------------- admin conveniences */
+/* Progressive enhancement, as above: with JS off the forms still submit and the
+   server does all the real work. These only shorten the feedback loop. */
+(function () {
+  'use strict';
+
+  /* Preview a chosen image before uploading, so a wrong file is obvious before
+     a round trip. The object URL is revoked once the image has decoded — not
+     immediately, or Safari shows a blank frame. */
+  var previewPairs = [
+    { input: 'photo-input', img: 'photo-preview', placeholder: 'photo-placeholder' },
+    { input: 'scan-input',  img: 'scan-preview-img', wrap: 'scan-preview' }
+  ];
+
+  previewPairs.forEach(function (pair) {
+    var input = document.getElementById(pair.input);
+    var img = document.getElementById(pair.img);
+    if (!input || !img) return;
+
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file || !file.type.startsWith('image/')) return;
+      var url = URL.createObjectURL(file);
+      img.addEventListener('load', function once() {
+        URL.revokeObjectURL(url);
+        img.removeEventListener('load', once);
+      });
+      img.src = url;
+      img.hidden = false;
+      var placeholder = pair.placeholder && document.getElementById(pair.placeholder);
+      if (placeholder) placeholder.hidden = true;
+      var wrap = pair.wrap && document.getElementById(pair.wrap);
+      if (wrap) wrap.hidden = false;
+    });
+  });
+
+  /* Transcribing a photo takes several seconds with no visible sign that
+     anything is happening, which invites a second click and a second API bill.
+     Disable on submit and say what's going on. */
+  document.querySelectorAll('button[data-busy]').forEach(function (btn) {
+    var form = btn.closest('form');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+      // Let the browser's own validation block submission first.
+      if (form.checkValidity && !form.checkValidity()) return;
+      btn.disabled = true;
+      btn.textContent = btn.getAttribute('data-busy');
+    });
+  });
+})();

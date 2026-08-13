@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Manage recipes — {{ site.name }}{% endblock %}
+{# Admin-only page: keep it out of search results even though it 302s to login. #}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<section class="section section--page">
+  <div class="container">
+
+    <header class="manage-head">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Manage recipes</h1>
+        <p class="section-tagline">
+          {{ total }} recipe{{ '' if total == 1 else 's' }} in the collection{% if without_photo %},
+          {{ without_photo }} without a photo{% endif %}.
+        </p>
+      </div>
+      <div class="manage-actions">
+        <a class="btn btn--primary" href="{{ url_for('main.create_recipe') }}">
+          <svg class="ico ico--xs" aria-hidden="true"><use href="#i-plus"></use></svg>
+          New recipe
+        </a>
+        {% if import_enabled %}
+          <a class="btn btn--ghost" href="{{ url_for('main.import_recipe') }}">
+            <svg class="ico ico--xs" aria-hidden="true"><use href="#i-camera"></use></svg>
+            Import from a photo
+          </a>
+        {% endif %}
+      </div>
+    </header>
+
+    {# GET so a search is linkable and needs no CSRF token. #}
+    <form class="manage-search" method="get" role="search">
+      <label class="sr-only" for="q">Search recipes</label>
+      <input class="input" type="search" id="q" name="q" value="{{ query }}"
+             placeholder="Search by title or category" autocomplete="off">
+      <button class="btn btn--ghost btn--sm" type="submit">Search</button>
+      {% if query %}
+        <a class="btn btn--quiet btn--sm" href="{{ url_for('main.manage') }}">Clear</a>
+      {% endif %}
+    </form>
+
+    {% if recipes %}
+      <div class="table-wrap">
+        <table class="data-table data-table--manage">
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr-only">Photo</span></th>
+              <th scope="col">Recipe</th>
+              <th scope="col">Category</th>
+              <th scope="col">Updated</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recipes %}
+              <tr>
+                <td class="cell-thumb">
+                  {% if r.photo_url %}
+                    <img class="thumb" src="{{ r.photo_url }}" alt="" width="56" height="56"
+                         loading="lazy" decoding="async">
+                  {% else %}
+                    <span class="thumb thumb--empty" title="No photo">
+                      <svg class="ico ico--xs" aria-hidden="true"><use href="#i-book"></use></svg>
+                    </span>
+                  {% endif %}
+                </td>
+                <th scope="row">
+                  <a href="{{ url_for('main.recipe', recipe_id=r.id) }}">{{ r.title }}</a>
+                </th>
+                <td>{{ r.category }}</td>
+                <td class="cell-muted">
+                  {{ r.timestamp.strftime('%b %-d, %Y') if r.timestamp else '—' }}
+                </td>
+                <td class="cell-actions">
+                  <a class="btn btn--ghost btn--sm" href="{{ url_for('main.edit_recipe', recipe_id=r.id) }}">
+                    <svg class="ico ico--xs" aria-hidden="true"><use href="#i-edit"></use></svg> Edit
+                  </a>
+                  {# POST with a CSRF token, never a link: a GET delete can be
+                     fired by any crawler or prefetching browser. #}
+                  <form class="inline-form" method="post"
+                        action="{{ url_for('main.delete_recipe', recipe_id=r.id) }}"
+                        data-confirm="Delete “{{ r.title }}”? This cannot be undone.">
+                    {{ delete_form.hidden_tag() }}
+                    <button class="btn btn--danger btn--sm" type="submit">
+                      <svg class="ico ico--xs" aria-hidden="true"><use href="#i-trash"></use></svg> Delete
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">
+        {% if query %}
+          Nothing matches “{{ query }}”. <a href="{{ url_for('main.manage') }}">Show all recipes.</a>
+        {% else %}
+          No recipes yet. <a href="{{ url_for('main.create_recipe') }}">Add the first one.</a>
+        {% endif %}
+      </p>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

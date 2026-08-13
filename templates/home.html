@@ -15,10 +15,8 @@
           Browse the recipes
           <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
         </a>
-        {% if current_user.is_authenticated %}
-          <a class="btn btn--ghost" href="{{ url_for('main.create_recipe') }}">Add a recipe</a>
-        {% elif config.REGISTRATION_OPEN %}
-          <a class="btn btn--ghost" href="{{ url_for('main.register') }}">Create an account</a>
+        {% if is_admin %}
+          <a class="btn btn--ghost" href="{{ url_for('main.manage') }}">Manage recipes</a>
         {% endif %}
       </div>
     </div>
@@ -27,9 +25,9 @@
        honest and one fewer asset to carry. #}
     {% set showcase = featured[0] if featured else none %}
     <div class="hero-portrait hero-portrait--recipes">
-      {% if showcase and showcase.image_file %}
+      {% if showcase and showcase.photo_url %}
         <a href="{{ url_for('main.recipe', recipe_id=showcase.id) }}">
-          <img src="{{ showcase.image_file|static_v }}" alt="{{ showcase.title }}"
+          <img src="{{ showcase.photo_url }}" alt="{{ showcase.title }}"
                width="560" height="560" fetchpriority="high" decoding="async">
         </a>
       {% else %}
@@ -53,7 +51,7 @@
   <div class="container">
     <header class="section-head">
       <p class="eyebrow">How it works</p>
-      <h2>A place to share recipes</h2>
+      <h2>A home for our family's recipes</h2>
     </header>
 
     <div class="card-grid card-grid--4">
@@ -90,7 +88,7 @@
         </a>
       </p>
     {% else %}
-      <p class="empty-state">No recipes yet. {% if current_user.is_authenticated %}<a href="{{ url_for('main.create_recipe') }}">Add the first one.</a>{% endif %}</p>
+      <p class="empty-state">No recipes yet. {% if is_admin %}<a href="{{ url_for('main.create_recipe') }}">Add the first one.</a>{% endif %}</p>
     {% endif %}
   </div>
 </section>
