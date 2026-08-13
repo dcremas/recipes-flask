@@ -1,0 +1,196 @@
+/* Recipe PDF — rendered by WeasyPrint.
+   ---------------------------------------------------------------------------
+   Two rules govern this file:
+
+   1. It must render identically on any host. Fonts are embedded via @font-face
+      from static/fonts/ rather than requested by family name, because a
+      fontconfig lookup that misses silently falls back to a serif — which is
+      exactly what happened on the first attempt (Times New Roman ended up in
+      the PDF on a machine where DejaVu was not installed).
+
+   2. It must fit on exactly one page. Every dimension below is expressed in em
+      so that the single `html { font-size }` declaration injected by the route
+      scales the entire document. Nothing here may use px, and only the page box
+      itself uses mm.
+
+   It is independent of site.css on purpose: the screen stylesheet targets a
+   fluid, dark-capable viewport, and a sheet of paper is neither. */
+
+@font-face {
+  font-family: "Recipe Sans";
+  src: url("fonts/DejaVuSans.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Recipe Sans";
+  src: url("fonts/DejaVuSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Page margins and root font-size are injected by the route — see
+   templates/recipe_pdf.html — so the auto-fit loop can shrink both together. */
+
+@page {
+  size: Letter;
+  /* No running header and no page counter: this document is always one page,
+     so both would be noise. */
+}
+
+:root {
+  --ink:       #1c1917;
+  --ink-soft:  #57534e;
+  --ink-faint: #8a817c;
+  --accent:    #c2560f;
+  --rule:      #e3ddd7;
+  --wash:      #faf7f4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Recipe Sans", sans-serif;
+  font-size: 1em;
+  line-height: 1.45;
+  color: var(--ink);
+  hyphens: none;
+}
+
+/* ---------------------------------------------------------------- masthead */
+.doc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.9em;
+  padding-bottom: 1.15em;
+  border-bottom: 0.6pt solid var(--rule);
+  margin-bottom: 1.35em;
+}
+.doc-head-copy { flex: 1; min-width: 0; }
+
+.kicker {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.45em;
+}
+
+h1 {
+  font-size: 2.3em;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.5em;
+  font-weight: 700;
+}
+
+/* Sized in em so the photo shrinks with the text rather than crowding it out
+   when a long recipe forces the document down a size. */
+.doc-photo {
+  width: 11.4em;
+  height: 8.4em;
+  object-fit: cover;
+  border-radius: 0.45em;
+  flex: none;
+}
+
+/* ------------------------------------------------------------------- facts */
+.facts { display: flex; gap: 2.2em; list-style: none; margin: 0; padding: 0; }
+.facts li { margin: 0; }
+.facts .label {
+  display: block;
+  font-size: 0.65em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.15em;
+}
+.facts .value { font-size: 1.02em; font-weight: 700; }
+
+/* ------------------------------------------------------------------ layout */
+/* A table, not flex/grid: table cells give reliable top alignment across both
+   columns, which is what keeps the two section headings on the same baseline. */
+.cols { width: 100%; border-collapse: collapse; }
+.cols > tbody > tr > td { vertical-align: top; padding: 0; }
+.col-ingredients { width: 36%; padding-right: 2em !important; }
+.col-steps { width: 64%; }
+
+h2 {
+  font-size: 1.02em;
+  font-weight: 700;
+  margin: 0 0 0.75em;      /* zero top margin keeps both columns level */
+  padding-bottom: 0.35em;
+  border-bottom: 0.6pt solid var(--rule);
+}
+
+/* -------------------------------------------------------------- ingredients */
+.ingredients { list-style: none; margin: 0; padding: 0; }
+.ingredients li {
+  position: relative;
+  padding-left: 1.45em;
+  margin-bottom: 0.55em;
+}
+/* An empty checkbox — genuinely useful while shopping or cooking. */
+.ingredients li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.32em;
+  width: 0.68em;
+  height: 0.68em;
+  border: 0.7pt solid var(--accent);
+  border-radius: 0.12em;
+}
+
+/* ------------------------------------------------------------------- steps */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.steps li {
+  position: relative;
+  padding-left: 2.05em;
+  margin-bottom: 0.7em;
+  counter-increment: step;
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.35em;
+  height: 1.35em;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.78em;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.35em;
+}
+
+/* -------------------------------------------------------------------- tips */
+.tips {
+  margin-top: 1.5em;
+  padding: 0.95em 1.2em;
+  background: var(--wash);
+  border-left: 1.2pt solid var(--accent);
+  border-radius: 0 0.35em 0.35em 0;
+}
+.tips h2 { border: none; margin-bottom: 0.45em; padding: 0; }
+.tips ul { margin: 0; padding-left: 1em; }
+.tips li { margin-bottom: 0.35em; }
+.tips li:last-child { margin-bottom: 0; }
+
+/* ------------------------------------------------------------------ footer */
+.doc-foot {
+  margin-top: 1.6em;
+  padding-top: 0.7em;
+  border-top: 0.6pt solid var(--rule);
+  font-size: 0.78em;
+  color: var(--ink-faint);
+  display: flex;
+  justify-content: space-between;
+}
+
+.empty { color: var(--ink-faint); font-style: italic; margin: 0; }

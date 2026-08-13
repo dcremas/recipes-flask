@@ -1,0 +1,86 @@
+{# Standalone document for WeasyPrint. Deliberately does NOT extend base.html:
+   no nav, no footer, no theme toggle, no scripts — a sheet of paper has none of
+   those. The stylesheet is inlined by the route so the PDF has zero external
+   dependencies at render time. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ recipe.title }}</title>
+<style>{{ pdf_css|safe }}</style>
+{# Injected by the route's auto-fit loop: one root size scales the whole
+   document, and the page margin shrinks with it. #}
+<style>
+  html { font-size: {{ base_pt }}pt; }
+  @page { margin: {{ margin_mm }}mm; }
+</style>
+</head>
+<body>
+
+<header class="doc-head">
+  <div class="doc-head-copy">
+    <p class="kicker">{{ recipe.category }}</p>
+    <h1>{{ recipe.title }}</h1>
+    <ul class="facts">
+      {% if recipe.prep_time %}
+        <li><span class="label">Prep</span><span class="value">{{ recipe.prep_time }}</span></li>
+      {% endif %}
+      {% if recipe.cooking_time %}
+        <li><span class="label">Cook</span><span class="value">{{ recipe.cooking_time }}</span></li>
+      {% endif %}
+      {% if recipe.yield_amount %}
+        <li><span class="label">Serves</span><span class="value">{{ recipe.yield_amount }}</span></li>
+      {% endif %}
+    </ul>
+  </div>
+
+  {# Only rendered when the file exists on disk — same guarantee as the web
+     page. A missing photo simply gives the copy the full width. #}
+  {% if photo_uri %}
+    <img class="doc-photo" src="{{ photo_uri }}" alt="">
+  {% endif %}
+</header>
+
+<table class="cols">
+  <tbody>
+    <tr>
+      <td class="col-ingredients">
+        <h2>Ingredients</h2>
+        {% if recipe.ingredient_list %}
+          <ul class="ingredients">
+            {% for item in recipe.ingredient_list %}<li>{{ item }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="empty">No ingredients recorded.</p>
+        {% endif %}
+      </td>
+      <td class="col-steps">
+        <h2>Instructions</h2>
+        {% if recipe.instruction_list %}
+          <ol class="steps">
+            {% for step in recipe.instruction_list %}<li>{{ step }}</li>{% endfor %}
+          </ol>
+        {% else %}
+          <p class="empty">No instructions recorded.</p>
+        {% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+{% if recipe.tip_list %}
+  <section class="tips">
+    <h2>Tips</h2>
+    <ul>
+      {% for tip in recipe.tip_list %}<li>{{ tip }}</li>{% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<footer class="doc-foot">
+  <span>{{ site.name }} — {{ site.tagline }}</span>
+  <span>{% if recipe.author %}Shared by {{ recipe.author.username }}{% endif %}</span>
+</footer>
+
+</body>
+</html>

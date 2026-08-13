@@ -14,12 +14,15 @@ server, not merely hidden in the template.
 
 from __future__ import annotations
 
+import os
 import time
 from collections import defaultdict, deque
+from pathlib import Path
 from urllib.parse import urlparse
 
 from flask import (
     Blueprint,
+    Response,
     abort,
     current_app,
     flash,
@@ -154,6 +157,108 @@ def recipe(recipe_id: int):
     if item is None:
         abort(404)
     return render_template("recipe.html", recipe=item, delete_form=DeleteForm())
+
+
+@bp.route("/recipes/<int:recipe_id>.pdf")
+def recipe_pdf(recipe_id: int):
+    """Render the recipe as a real PDF file.
+
+    WeasyPrint is imported lazily: it pulls in pango/cairo through cffi, which
+    costs both import time and resident memory in every worker. Only the
+    handful of requests that actually want a PDF should pay for it.
+    """
+    item = db.session.get(Recipes, recipe_id)
+    if item is None:
+        abort(404)
+
+    pdf = _render_pdf(item)
+    filename = f"{item.slug or 'recipe'}.pdf"
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={
+            # inline, not attachment: the browser's PDF viewer opens it, from
+            # which the reader can print or save. An attachment forces a
+            # download and hides the result, which is the opposite of what a
+            # "print this recipe" button should do.
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "public, max-age=300",
+        },
+    )
+
+
+# Auto-fit ladder. Each step is (root font size in pt, page margin in mm).
+# 10.5pt is the comfortable default and fits every recipe currently in the
+# collection; the smaller steps exist for unusually long ones. Margins shrink
+# alongside the type so a dense page still looks deliberate rather than crammed.
+_FIT_STEPS = [
+    (10.5, 17),
+    (10.0, 16),
+    (9.5, 15),
+    (9.0, 14),
+    (8.5, 13),
+    (8.0, 12),
+    (7.5, 11),
+    (7.0, 10),
+    (6.5, 10),
+    (6.0, 10),
+]
+
+
+def _render_pdf(item: Recipes) -> bytes:
+    """Render the recipe to a single-page PDF.
+
+    WeasyPrint lays out the whole document before it can report a page count,
+    so fitting to one page means rendering and measuring. The ladder above is
+    walked until the document reports a single page; each step is one full
+    layout pass, which is why the default sits at the top and virtually every
+    recipe stops there on the first try.
+    """
+    from weasyprint import HTML  # noqa: PLC0415 — see recipe_pdf() docstring
+
+    static_dir = os.path.join(current_app.root_path, "static")
+
+    # The stylesheet is inlined and the photo passed as a file:// URI so the
+    # renderer never makes a network request — it must not depend on the site
+    # being reachable from itself.
+    with open(os.path.join(static_dir, "css", "pdf.css"), encoding="utf-8") as fh:
+        pdf_css = fh.read()
+
+    photo_uri = None
+    if item.image_file:
+        photo_path = os.path.join(static_dir, *item.image_file.split("/"))
+        if os.path.isfile(photo_path):
+            photo_uri = Path(photo_path).as_uri()
+
+    document = None
+    for base_pt, margin_mm in _FIT_STEPS:
+        html = render_template(
+            "recipe_pdf.html",
+            recipe=item,
+            pdf_css=pdf_css,
+            photo_uri=photo_uri,
+            base_pt=base_pt,
+            margin_mm=margin_mm,
+        )
+        document = HTML(string=html, base_url=static_dir).render()
+        if len(document.pages) == 1:
+            break
+    else:
+        # Fell off the end of the ladder. One page is a hard requirement, so the
+        # first page is what ships — which means content past it is dropped.
+        # That is a real trade-off, logged loudly rather than hidden: at 6pt a
+        # recipe would need roughly 60 ingredients and 40 steps to get here, so
+        # in practice this is a tripwire, not a code path.
+        current_app.logger.warning(
+            "recipe %s (%r) overflows one page even at the smallest size "
+            "(%d pages rendered); content beyond page 1 is not included",
+            item.id,
+            item.title,
+            len(document.pages),
+        )
+
+    # Single page, always — the guarantee holds regardless of which branch ran.
+    return document.copy(document.pages[:1]).write_pdf()
 
 
 # ---------------------------------------------------------------------------

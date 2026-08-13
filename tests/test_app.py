@@ -350,3 +350,89 @@ class TestOps:
         resp = client.get("/definitely-not-a-page")
         assert resp.status_code == 404
         assert b"couldn" in resp.data
+
+
+class TestPdf:
+    """The PDF is the point of the site — it must always be one readable page."""
+
+    @staticmethod
+    def _pages(data: bytes) -> int:
+        """Page count via a real parser.
+
+        Grepping the bytes for "/Type /Page" does not work: WeasyPrint emits
+        PDF 1.7 with compressed object streams, so the page objects are inside
+        a Flate stream and never appear in the raw output.
+        """
+        import io
+
+        from pypdf import PdfReader
+
+        return len(PdfReader(io.BytesIO(data)).pages)
+
+    def test_pdf_renders(self, client, app):
+        with app.app_context():
+            rid = db.session.execute(db.select(Recipes)).scalars().first().id
+        resp = client.get(f"/recipes/{rid}.pdf")
+        assert resp.status_code == 200
+        assert resp.mimetype == "application/pdf"
+        assert resp.data[:5] == b"%PDF-"
+
+    def test_pdf_is_inline_with_a_sensible_filename(self, client, app):
+        with app.app_context():
+            r = db.session.execute(db.select(Recipes)).scalars().first()
+            rid, slug = r.id, r.slug
+        cd = client.get(f"/recipes/{rid}.pdf").headers["Content-Disposition"]
+        assert cd.startswith("inline")
+        assert f'filename="{slug}.pdf"' in cd
+
+    def test_every_recipe_is_exactly_one_page(self, client, app):
+        with app.app_context():
+            ids = [r.id for r in db.session.execute(db.select(Recipes)).scalars()]
+        for rid in ids:
+            data = client.get(f"/recipes/{rid}.pdf").data
+            assert self._pages(data) == 1, f"recipe {rid} produced multiple pages"
+
+    def test_long_recipe_still_fits_one_page(self, client, app, user):
+        """Exercises the auto-fit ladder, which real recipes never reach."""
+        with app.app_context():
+            r = Recipes(
+                author_id=user,
+                category="Testing",
+                title="Fit Ladder",
+                prep_time="10 Minutes",
+                cooking_time="20 Minutes",
+                yield_amount="4",
+                ingredients="\n".join(
+                    f"{i} cup of a fairly long ingredient name here" for i in range(40)
+                ),
+                instructions="\n".join(
+                    f"Step {i}: do a wordy thing that wraps onto a second line."
+                    for i in range(30)
+                ),
+                tips="A tip.",
+            )
+            db.session.add(r)
+            db.session.commit()
+            rid = r.id
+        try:
+            assert self._pages(client.get(f"/recipes/{rid}.pdf").data) == 1
+        finally:
+            with app.app_context():
+                db.session.delete(db.session.get(Recipes, rid))
+                db.session.commit()
+
+    def test_missing_recipe_pdf_404s(self, client):
+        assert client.get("/recipes/99999.pdf").status_code == 404
+
+    def test_photoless_recipe_pdf_renders(self, client, app):
+        """A recipe with no photo must still produce a valid PDF."""
+        with app.app_context():
+            r = db.session.execute(
+                db.select(Recipes).where(Recipes.title.ilike("%onion%"))
+            ).scalar_one_or_none()
+            if r is None:
+                pytest.skip("no photo-less recipe in fixture data")
+            rid = r.id
+        resp = client.get(f"/recipes/{rid}.pdf")
+        assert resp.status_code == 200
+        assert self._pages(resp.data) == 1

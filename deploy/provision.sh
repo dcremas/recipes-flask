@@ -16,10 +16,34 @@ say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 [[ -d $APP ]] || { echo "missing $APP — deploy the code first" >&2; exit 1; }
 
+say "System libraries for PDF rendering"
+# WeasyPrint renders through pango/cairo via cffi; without these the import
+# fails at runtime and only the PDF route breaks, which is easy to miss.
+# Fonts are vendored in static/fonts and loaded by @font-face, so no font
+# package is required here.
+dnf install -y -q pango gdk-pixbuf2 >/dev/null
+
 say "Python virtualenv"
+# Pin the interpreter explicitly. Amazon Linux 2023 ships python3 -> 3.9 for
+# root, while ec2-user's PATH may resolve python3 to something newer — so
+# "python3" here silently produced a 3.9 venv, and WeasyPrint requires >= 3.10.
+# 3.11 is the newest packaged interpreter and is what the sibling app uses.
+PYBIN="${PYBIN:-/usr/bin/python3.11}"
+[[ -x $PYBIN ]] || PYBIN=$(command -v python3)
+
+# Rebuild the venv if it is missing or older than the interpreter we need.
+NEEDS_VENV=0
 if [[ ! -x $APP/.venv/bin/python ]]; then
-  python3 -m venv "$APP/.venv"
+  NEEDS_VENV=1
+elif ! "$APP/.venv/bin/python" -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)'; then
+  echo "  existing venv is $("$APP/.venv/bin/python" -V 2>&1) — rebuilding on $PYBIN"
+  rm -rf "$APP/.venv"
+  NEEDS_VENV=1
 fi
+if [[ $NEEDS_VENV -eq 1 ]]; then
+  "$PYBIN" -m venv "$APP/.venv"
+fi
+echo "  venv: $("$APP/.venv/bin/python" -V 2>&1)"
 "$APP/.venv/bin/pip" install --quiet --upgrade pip
 "$APP/.venv/bin/pip" install --quiet -r "$APP/requirements.txt"
 chown -R ec2-user:ec2-user "$APP"

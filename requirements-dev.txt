@@ -1,0 +1,4 @@
+# Test-only dependencies. Not installed on the server.
+-r requirements.txt
+pytest==8.3.4
+pypdf==5.1.0

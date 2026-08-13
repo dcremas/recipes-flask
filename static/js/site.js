@@ -91,16 +91,11 @@
 })();
 
 /* ---------------------------------------------------------------- recipes */
-/* Print button and delete confirmation.
-   Both are progressive enhancement: with JS off, Print simply does nothing
-   (Cmd-P still works) and Delete still submits — the server re-checks
-   ownership and the CSRF token, so confirmation is a courtesy, not a control. */
+/* Delete confirmation.
+   Progressive enhancement: with JS off the form still submits, and the server
+   re-checks ownership and the CSRF token — so this is a courtesy, not a
+   control. (Printing is handled by the PDF route, not window.print().) */
 (function () {
-  document.addEventListener('click', function (e) {
-    var printBtn = e.target.closest('[data-print]');
-    if (printBtn) { window.print(); }
-  });
-
   document.addEventListener('submit', function (e) {
     var form = e.target.closest('form[data-confirm]');
     if (!form) return;

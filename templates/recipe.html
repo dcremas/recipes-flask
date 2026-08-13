@@ -33,9 +33,16 @@
         </ul>
 
         <div class="recipe-actions">
-          <button class="btn btn--ghost btn--sm" type="button" data-print>
-            <svg class="ico ico--xs" aria-hidden="true"><use href="#i-printer"></use></svg> Print
-          </button>
+          {# Opens the generated PDF rather than calling window.print(). The
+             browser's PDF viewer then offers both printing and saving, and the
+             output is identical for every visitor regardless of their browser,
+             margins or "print backgrounds" setting. #}
+          <a class="btn btn--primary btn--sm"
+             href="{{ url_for('main.recipe_pdf', recipe_id=recipe.id) }}"
+             target="_blank" rel="noopener">
+            <svg class="ico ico--xs" aria-hidden="true"><use href="#i-printer"></use></svg>
+            Print / Save PDF
+          </a>
           {% if recipe.owned_by(current_user) %}
             <a class="btn btn--ghost btn--sm" href="{{ url_for('main.edit_recipe', recipe_id=recipe.id) }}">
               <svg class="ico ico--xs" aria-hidden="true"><use href="#i-edit"></use></svg> Edit
