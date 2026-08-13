@@ -1,0 +1,54 @@
+[Unit]
+Description=Recipes (Flask/gunicorn)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=ec2-user
+# Group is nginx, not ec2-user, on purpose: RuntimeDirectory and the gunicorn
+# socket inherit this group, which is the only thing that lets nginx (uid nginx)
+# open the socket. With Group=ec2-user the directory is 0750 ec2-user:ec2-user
+# and every proxied request fails with "13: Permission denied".
+Group=nginx
+WorkingDirectory=/home/ec2-user/recipes_flask
+
+# Secrets live here, root-owned and chmod 600 — never in the unit file and
+# never rsynced from a laptop.
+EnvironmentFile=/etc/recipes/recipes.env
+
+# Two workers on a t3.medium alongside prosite and the Bokeh apps. The
+# in-process login rate limiter is per-worker, so keep this small; nginx does
+# the authoritative limiting in front.
+ExecStart=/home/ec2-user/recipes_flask/.venv/bin/gunicorn \
+    --workers 2 \
+    --threads 4 \
+    --bind unix:/run/recipes/recipes.sock \
+    --umask 007 \
+    --access-logfile - \
+    --error-logfile - \
+    --forwarded-allow-ips='*' \
+    'app:app'
+
+RuntimeDirectory=recipes
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+
+# Hardening. The app needs no write access anywhere outside its runtime dir.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/run/recipes
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

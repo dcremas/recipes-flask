@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+{# Same theming contract as the main site: dark by default, a saved preference
+   wins, and the choice is applied before first paint. #}
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ site.title }}{% endblock %}</title>
+<meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
+<meta name="author" content="{{ site.owner }}">
+<link rel="canonical" href="{{ site.url }}{{ request.path }}">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.name }}">
+<meta property="og:title" content="{{ self.title() }}">
+<meta property="og:description" content="{{ self.description() }}">
+<meta property="og:url" content="{{ site.url }}{{ request.path }}">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23c2410c'/><text y='.9em' x='50%' text-anchor='middle' font-size='58' font-family='system-ui,sans-serif' font-weight='700' fill='white'>R</text></svg>">
+<link rel="stylesheet" href="{{ 'css/site.css'|static_v }}">
+
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  })();
+</script>
+
+{% block head %}{% endblock %}
+</head>
+
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+{% include "partials/icons.html" %}
+{% include "partials/nav.html" %}
+
+<main id="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-wrap container" role="status" aria-live="polite">
+        {% for category, msg in messages %}
+          <p class="flash flash--{{ category }}">
+            <svg class="ico" aria-hidden="true"><use href="#i-{{ 'check' if category == 'success' else 'alert' }}"></use></svg>
+            <span>{{ msg }}</span>
+          </p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% include "partials/footer.html" %}
+
+<script src="{{ 'js/site.js'|static_v }}" defer></script>
+</body>
+</html>

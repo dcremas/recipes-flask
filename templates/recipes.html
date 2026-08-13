@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Recipes — {{ site.name }}{% endblock %}
+{% block description %}Browse every recipe in the collection.{% endblock %}
+
+{% block content %}
+<section class="section section--page">
+  <div class="container">
+    <header class="section-head section-head--wide">
+      <p class="eyebrow">The collection</p>
+      <h2>All recipes</h2>
+      <p class="section-tagline">
+        {{ recipes|length }} recipe{{ '' if recipes|length == 1 else 's' }}{% if active_category %} in “{{ active_category }}”{% endif %}.
+        Every recipe page is print-friendly.
+      </p>
+    </header>
+
+    {% if categories %}
+      <nav class="filter-row" aria-label="Filter by category">
+        <a class="chip{{ ' chip--on' if not active_category }}" href="{{ url_for('main.recipes') }}">All</a>
+        {% for c in categories %}
+          <a class="chip{{ ' chip--on' if active_category|lower == c|lower }}"
+             href="{{ url_for('main.recipes', category=c) }}">{{ c }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    {% if recipes %}
+      <div class="recipe-grid">
+        {% for r in recipes %}
+          {% include "partials/recipe_card.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">
+        No recipes{% if active_category %} in that category{% endif %} yet.
+        {% if active_category %}<a href="{{ url_for('main.recipes') }}">Show all recipes.</a>{% endif %}
+      </p>
+    {% endif %}
+
+    <p class="section-more">
+      <a class="btn btn--ghost" href="{{ url_for('main.recipes_table') }}">
+        <svg class="ico" aria-hidden="true"><use href="#i-list"></use></svg> Table view
+      </a>
+    </p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "partials/field.html" import render, form_errors %}
+{% set editing = mode == 'edit' %}
+{% block title %}{{ 'Edit' if editing else 'Add' }} a recipe — {{ site.name }}{% endblock %}
+
+{% block content %}
+<section class="section section--page">
+  <div class="container narrow">
+    <header class="section-head">
+      <p class="eyebrow">{{ 'Edit' if editing else 'Contribute' }}</p>
+      <h2>{{ 'Edit “' ~ recipe.title ~ '”' if editing else 'Add a recipe' }}</h2>
+      <p class="section-tagline">Put each ingredient and each step on its own line — they become a checklist and numbered steps.</p>
+    </header>
+
+    <form class="stack-form" method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ form_errors(form) }}
+      <div class="field-row">
+        {{ render(form.title) }}
+        {{ render(form.category, help='e.g. Breakfast, Italian, Mexican') }}
+      </div>
+      <div class="field-row field-row--3">
+        {{ render(form.prep_time, help='e.g. 15 minutes') }}
+        {{ render(form.cooking_time, help='e.g. 30 minutes') }}
+        {{ render(form.yield_amount, help='e.g. 4 servings') }}
+      </div>
+      {{ render(form.ingredients, rows=10, help='One ingredient per line.') }}
+      {{ render(form.instructions, rows=12, help='One step per line.') }}
+      {{ render(form.tips, rows=5, help='Optional — one tip per line.') }}
+
+      <div class="cta-row">
+        <button class="btn btn--primary" type="submit">
+          {{ 'Save changes' if editing else 'Add recipe' }}
+          <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+        </button>
+        <a class="btn btn--ghost" href="{{ url_for('main.recipe', recipe_id=recipe.id) if editing else url_for('main.recipes') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

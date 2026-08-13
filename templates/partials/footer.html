@@ -1,0 +1,23 @@
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p class="footer-meta">
+      &copy; {{ year }} {{ site.owner }}. All rights reserved.
+      <span class="sep" aria-hidden="true">·</span>
+      Built with Python, Flask and Jinja2.
+      <span class="sep" aria-hidden="true">·</span>
+      <span class="footer-credit">Produced with the aid of Claude Code&#39;s Command Line tools...</span>
+    </p>
+    <ul class="footer-links">
+      {% for s in site.socials %}
+        <li>
+          <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer" aria-label="{{ s.label }}">
+            <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
+            <span>{{ s.label }}</span>
+          </a>
+        </li>
+      {% endfor %}
+      <li><a href="{{ url_for('main.recipes') }}">Recipes</a></li>
+      <li><a href="{{ site.main_site }}" target="_blank" rel="noopener noreferrer">Main site</a></li>
+    </ul>
+  </div>
+</footer>

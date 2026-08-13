@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Recipes table — {{ site.name }}{% endblock %}
+{% block description %}Every recipe in a sortable table view.{% endblock %}
+
+{% block content %}
+<section class="section section--page">
+  <div class="container">
+    <header class="section-head section-head--wide">
+      <p class="eyebrow">The collection</p>
+      <h2>Recipes table</h2>
+      <p class="section-tagline">The same recipes at a glance, grouped by category.</p>
+    </header>
+
+    {% if recipes %}
+      {# The wrapper scrolls on its own so a narrow phone never forces the whole
+         page sideways. #}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Recipe</th>
+              <th scope="col">Category</th>
+              <th scope="col">Prep</th>
+              <th scope="col">Cook</th>
+              <th scope="col">Servings</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recipes %}
+              <tr>
+                <th scope="row"><a href="{{ url_for('main.recipe', recipe_id=r.id) }}">{{ r.title }}</a></th>
+                <td>{{ r.category }}</td>
+                <td>{{ r.prep_time or '—' }}</td>
+                <td>{{ r.cooking_time or '—' }}</td>
+                <td>{{ r.yield_amount or '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">No recipes yet.</p>
+    {% endif %}
+
+    <p class="section-more">
+      <a class="btn btn--ghost" href="{{ url_for('main.recipes') }}">
+        Card view <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+      </a>
+    </p>
+  </div>
+</section>
+{% endblock %}

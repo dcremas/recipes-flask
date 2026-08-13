@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title }} — {{ site.name }}{% endblock %}
+{% block description %}{{ recipe.title }} — a {{ recipe.category }} recipe from the {{ site.owner }} family collection.{% endblock %}
+
+{% block content %}
+<article class="section section--page recipe-detail">
+  <div class="container">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="{{ url_for('main.recipes') }}">Recipes</a>
+      <span aria-hidden="true">/</span>
+      <a href="{{ url_for('main.recipes', category=recipe.category) }}">{{ recipe.category }}</a>
+    </nav>
+
+    <header class="recipe-head">
+      <div class="recipe-head-copy">
+        <p class="eyebrow">{{ recipe.category }}</p>
+        <h1>{{ recipe.title }}</h1>
+
+        <ul class="recipe-facts">
+          {% if recipe.prep_time %}
+            <li><svg class="ico" aria-hidden="true"><use href="#i-clock"></use></svg>
+              <span><strong>Prep</strong>{{ recipe.prep_time }}</span></li>
+          {% endif %}
+          {% if recipe.cooking_time %}
+            <li><svg class="ico" aria-hidden="true"><use href="#i-flame"></use></svg>
+              <span><strong>Cook</strong>{{ recipe.cooking_time }}</span></li>
+          {% endif %}
+          {% if recipe.yield_amount %}
+            <li><svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg>
+              <span><strong>Serves</strong>{{ recipe.yield_amount }}</span></li>
+          {% endif %}
+        </ul>
+
+        <div class="recipe-actions">
+          <button class="btn btn--ghost btn--sm" type="button" data-print>
+            <svg class="ico ico--xs" aria-hidden="true"><use href="#i-printer"></use></svg> Print
+          </button>
+          {% if recipe.owned_by(current_user) %}
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('main.edit_recipe', recipe_id=recipe.id) }}">
+              <svg class="ico ico--xs" aria-hidden="true"><use href="#i-edit"></use></svg> Edit
+            </a>
+            {# Deletion is a POST with a CSRF token, never a link — a link would
+               let any crawler or cross-site image tag destroy a recipe. #}
+            <form class="inline-form" method="post"
+                  action="{{ url_for('main.delete_recipe', recipe_id=recipe.id) }}"
+                  data-confirm="Delete “{{ recipe.title }}”? This cannot be undone.">
+              {{ delete_form.hidden_tag() }}
+              <button class="btn btn--danger btn--sm" type="submit">
+                <svg class="ico ico--xs" aria-hidden="true"><use href="#i-trash"></use></svg> Delete
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="recipe-head-media">
+        {% if recipe.image_file %}
+          <img src="{{ recipe.image_file|static_v }}" alt="{{ recipe.title }}"
+               width="560" height="420" decoding="async">
+        {% else %}
+          <span class="img-placeholder img-placeholder--detail">
+            <svg class="ico" aria-hidden="true"><use href="#i-book"></use></svg>
+            <span class="img-placeholder-note">No photo yet</span>
+          </span>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="recipe-body">
+      <section class="recipe-col recipe-col--ingredients" aria-labelledby="h-ing">
+        <h2 id="h-ing">Ingredients</h2>
+        {% if recipe.ingredient_list %}
+          <ul class="check-list">
+            {% for item in recipe.ingredient_list %}<li>{{ item }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">No ingredients recorded.</p>
+        {% endif %}
+      </section>
+
+      <section class="recipe-col recipe-col--steps" aria-labelledby="h-ins">
+        <h2 id="h-ins">Instructions</h2>
+        {% if recipe.instruction_list %}
+          <ol class="step-list">
+            {% for step in recipe.instruction_list %}<li>{{ step }}</li>{% endfor %}
+          </ol>
+        {% else %}
+          <p class="muted">No instructions recorded.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    {# Tips are genuinely optional; the original crashed when they were absent. #}
+    {% if recipe.tip_list %}
+      <section class="recipe-tips" aria-labelledby="h-tips">
+        <h2 id="h-tips">Tips</h2>
+        <ul>
+          {% for tip in recipe.tip_list %}<li>{{ tip }}</li>{% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    <footer class="recipe-foot">
+      {% if recipe.author %}<span>Shared by {{ recipe.author.username }}</span>{% endif %}
+      {% if recipe.timestamp %}
+        <span class="sep" aria-hidden="true">·</span>
+        <span>Updated {{ recipe.timestamp.strftime('%B %-d, %Y') }}</span>
+      {% endif %}
+    </footer>
+  </div>
+</article>
+{% endblock %}

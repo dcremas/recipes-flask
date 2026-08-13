@@ -1,0 +1,23 @@
+{# Expects `r`. The image is only rendered when the file actually exists on
+   disk — see Recipes.image_file. Otherwise a styled placeholder stands in, so
+   a recipe without a photo looks intentional rather than broken. #}
+<article class="recipe-card">
+  <a class="recipe-card-media" href="{{ url_for('main.recipe', recipe_id=r.id) }}" tabindex="-1" aria-hidden="true">
+    {% if r.image_file %}
+      <img src="{{ r.image_file|static_v }}" alt="" loading="lazy" decoding="async" width="480" height="320">
+    {% else %}
+      <span class="img-placeholder">
+        <svg class="ico" aria-hidden="true"><use href="#i-book"></use></svg>
+      </span>
+    {% endif %}
+    <span class="recipe-card-cat">{{ r.category }}</span>
+  </a>
+  <div class="recipe-card-body">
+    <h3><a href="{{ url_for('main.recipe', recipe_id=r.id) }}">{{ r.title }}</a></h3>
+    <ul class="recipe-meta">
+      {% if r.prep_time %}<li><svg class="ico ico--xs" aria-hidden="true"><use href="#i-clock"></use></svg>{{ r.prep_time }}</li>{% endif %}
+      {% if r.cooking_time %}<li><svg class="ico ico--xs" aria-hidden="true"><use href="#i-flame"></use></svg>{{ r.cooking_time }}</li>{% endif %}
+      {% if r.yield_amount %}<li><svg class="ico ico--xs" aria-hidden="true"><use href="#i-users"></use></svg>{{ r.yield_amount }}</li>{% endif %}
+    </ul>
+  </div>
+</article>

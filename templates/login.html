@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "partials/field.html" import render, form_errors %}
+{% block title %}Log in — {{ site.name }}{% endblock %}
+
+{% block content %}
+<section class="section section--page">
+  <div class="container narrow">
+    <header class="section-head">
+      <p class="eyebrow">Welcome back</p>
+      <h2>Log in</h2>
+      <p class="section-tagline">You only need an account to add or edit recipes — browsing and printing are open to everyone.</p>
+    </header>
+
+    <form class="stack-form" method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ form_errors(form) }}
+      {{ render(form.email, autocomplete='email') }}
+      {{ render(form.password, autocomplete='current-password') }}
+      <label class="check">{{ form.remember_me() }} <span>{{ form.remember_me.label.text }}</span></label>
+      <button class="btn btn--primary" type="submit">
+        Log in <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+      </button>
+    </form>
+
+    {% if config.REGISTRATION_OPEN %}
+      <p class="form-alt">No account yet? <a href="{{ url_for('main.register') }}">Create one</a>.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

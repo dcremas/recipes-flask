@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ site.title }}{% endblock %}
+
+{% block content %}
+
+<section class="hero" id="top">
+  <div class="container hero-grid hero-grid--recipes">
+    <div class="hero-copy">
+      <p class="eyebrow">Family recipes</p>
+      <h1>{{ hero.greeting }}</h1>
+      <p class="lede">{{ hero.lede }}</p>
+      <p class="hero-body">{{ hero.body }}</p>
+      <div class="cta-row">
+        <a class="btn btn--primary" href="{{ url_for('main.recipes') }}">
+          Browse the recipes
+          <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+        </a>
+        {% if current_user.is_authenticated %}
+          <a class="btn btn--ghost" href="{{ url_for('main.create_recipe') }}">Add a recipe</a>
+        {% elif config.REGISTRATION_OPEN %}
+          <a class="btn btn--ghost" href="{{ url_for('main.register') }}">Create an account</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {# The original hero used a stock photo. A real recipe photo is both more
+       honest and one fewer asset to carry. #}
+    {% set showcase = featured[0] if featured else none %}
+    <div class="hero-portrait hero-portrait--recipes">
+      {% if showcase and showcase.image_file %}
+        <a href="{{ url_for('main.recipe', recipe_id=showcase.id) }}">
+          <img src="{{ showcase.image_file|static_v }}" alt="{{ showcase.title }}"
+               width="560" height="560" fetchpriority="high" decoding="async">
+        </a>
+      {% else %}
+        <div class="img-placeholder img-placeholder--hero" aria-hidden="true">
+          <svg class="ico"><use href="#i-book"></use></svg>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="container">
+    <dl class="stat-strip">
+      <div class="stat"><dt>{{ total }}</dt><dd>Recipes in the collection</dd></div>
+      <div class="stat"><dt>{{ category_count }}</dt><dd>Categories represented</dd></div>
+      <div class="stat"><dt>Free</dt><dd>To browse, print and share</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="section section--alt" id="about">
+  <div class="container">
+    <header class="section-head">
+      <p class="eyebrow">How it works</p>
+      <h2>A place to share recipes</h2>
+    </header>
+
+    <div class="card-grid card-grid--4">
+      {% for f in features %}
+        <article class="card">
+          <span class="card-icon" aria-hidden="true">
+            <svg class="ico"><use href="#i-{{ f.icon }}"></use></svg>
+          </span>
+          <h3>{{ f.title }}</h3>
+          <p>{{ f.body }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section" id="latest">
+  <div class="container">
+    <header class="section-head">
+      <p class="eyebrow">From the collection</p>
+      <h2>Our favorite selections</h2>
+      <p class="section-tagline">The most recently added recipes.</p>
+    </header>
+
+    {% if featured %}
+      <div class="recipe-grid">
+        {% for r in featured %}
+          {% include "partials/recipe_card.html" %}
+        {% endfor %}
+      </div>
+      <p class="section-more">
+        <a class="btn btn--ghost" href="{{ url_for('main.recipes') }}">
+          All recipes <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+        </a>
+      </p>
+    {% else %}
+      <p class="empty-state">No recipes yet. {% if current_user.is_authenticated %}<a href="{{ url_for('main.create_recipe') }}">Add the first one.</a>{% endif %}</p>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

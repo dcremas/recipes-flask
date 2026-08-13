@@ -1,0 +1,45 @@
+{# Nav mirrors the original menu: Homepage, Recipes, Recipes Table, Create
+   Recipe, Create Account, Login, Logout — but the auth items now reflect state
+   rather than showing "Logout" to signed-out visitors. #}
+<header class="site-header" id="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{{ url_for('main.home') }}">
+      <span class="brand-mark brand-mark--recipes" aria-hidden="true">R</span>
+      <span class="brand-text">
+        <strong>{{ site.name }}</strong>
+        <small>{{ site.tagline }}</small>
+      </span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+      <svg class="ico ico--menu" aria-hidden="true"><use href="#i-menu"></use></svg>
+      <svg class="ico ico--close" aria-hidden="true"><use href="#i-close"></use></svg>
+    </button>
+
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="{{ url_for('main.home') }}"{% if request.endpoint == 'main.home' %} aria-current="page"{% endif %}>Home</a></li>
+        <li><a href="{{ url_for('main.recipes') }}"{% if request.endpoint == 'main.recipes' %} aria-current="page"{% endif %}>Recipes</a></li>
+        <li><a href="{{ url_for('main.recipes_table') }}"{% if request.endpoint == 'main.recipes_table' %} aria-current="page"{% endif %}>Table</a></li>
+
+        {% if current_user.is_authenticated %}
+          <li><a href="{{ url_for('main.create_recipe') }}">Add recipe</a></li>
+          <li class="nav-user">
+            <span class="nav-who" title="Signed in as {{ current_user.username }}">{{ current_user.username }}</span>
+            <a class="nav-signout" href="{{ url_for('main.logout') }}">Log out</a>
+          </li>
+        {% else %}
+          <li><a href="{{ url_for('main.login') }}">Log in</a></li>
+          {% if config.REGISTRATION_OPEN %}
+            <li><a class="nav-cta" href="{{ url_for('main.register') }}">Create account</a></li>
+          {% endif %}
+        {% endif %}
+      </ul>
+    </nav>
+
+    <button class="theme-toggle" type="button" aria-label="Switch between light and dark theme" title="Toggle theme">
+      <svg class="ico ico--sun" aria-hidden="true"><use href="#i-sun"></use></svg>
+      <svg class="ico ico--moon" aria-hidden="true"><use href="#i-moon"></use></svg>
+    </button>
+  </div>
+</header>
