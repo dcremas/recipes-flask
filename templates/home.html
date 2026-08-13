@@ -54,7 +54,7 @@
       <h2>A home for our family's recipes</h2>
     </header>
 
-    <div class="card-grid card-grid--4">
+    <div class="card-grid card-grid--3">
       {% for f in features %}
         <article class="card">
           <span class="card-icon" aria-hidden="true">
@@ -92,5 +92,7 @@
     {% endif %}
   </div>
 </section>
+
+{% include "partials/feedback.html" %}
 
 {% endblock %}

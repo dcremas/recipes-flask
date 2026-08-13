@@ -88,6 +88,21 @@ def create_app(config: dict | None = None) -> Flask:
         UPLOAD_DIR=os.getenv("UPLOAD_DIR") or "",
         ANTHROPIC_API_KEY=(os.getenv("ANTHROPIC_API_KEY") or "").strip(),
         IMPORT_MODEL=os.getenv("IMPORT_MODEL") or "claude-opus-5",
+        # Feedback form. Same variable names as the main site so both are
+        # operated identically; delivery order is SES -> SMTP -> file.
+        FEEDBACK_ENABLED=os.getenv("FEEDBACK_ENABLED", "1") not in ("0", "false", "False"),
+        MAIL_BACKEND=(os.getenv("MAIL_BACKEND") or "auto").strip().lower(),
+        MAIL_FROM=os.getenv("MAIL_FROM"),
+        MAIL_TO=os.getenv("MAIL_TO") or "dustincremascoli@gmail.com",
+        # Same name and default as the main site. us-east-2 is where the
+        # instance and the verified SES identity actually live.
+        SES_REGION=os.getenv("SES_REGION", "us-east-2"),
+        SMTP_HOST=os.getenv("SMTP_HOST"),
+        SMTP_PORT=int(os.getenv("SMTP_PORT", "587")),
+        SMTP_USER=os.getenv("SMTP_USER"),
+        SMTP_PASSWORD=os.getenv("SMTP_PASSWORD"),
+        SMTP_FROM=os.getenv("SMTP_FROM"),
+        MESSAGES_FILE=os.getenv("MESSAGES_FILE") or "",
     )
     if config:
         app.config.update(config)
@@ -112,6 +127,22 @@ def create_app(config: dict | None = None) -> Flask:
     if not app.config["ANTHROPIC_API_KEY"]:
         app.logger.warning("ANTHROPIC_API_KEY unset — 'import from photo' is disabled.")
 
+    # Feedback fallback file. Must be writable by the service: the unit sets
+    # ProtectSystem=strict, so this belongs under a ReadWritePaths entry, not in
+    # the app tree. Defaults beside the uploads for exactly that reason.
+    if not app.config["MESSAGES_FILE"]:
+        app.config["MESSAGES_FILE"] = os.path.join(
+            os.path.dirname(app.config["UPLOAD_DIR"].rstrip(os.sep)) or app.instance_path,
+            "feedback.jsonl",
+        )
+    if app.config["FEEDBACK_ENABLED"] and not app.config["MAIL_FROM"]:
+        # Not fatal — messages still land in MESSAGES_FILE, and the page says
+        # "recorded" rather than "sent" so nobody is misled.
+        app.logger.warning(
+            "MAIL_FROM unset — feedback will be written to %s instead of emailed.",
+            app.config["MESSAGES_FILE"],
+        )
+
     if not app.config["SQLALCHEMY_DATABASE_URI"]:
         raise RuntimeError("DATABASE_URL (or EXTERNAL_URL) must be set")
 
@@ -132,6 +163,7 @@ def create_app(config: dict | None = None) -> Flask:
 
 
 def _register_filters(app: Flask) -> None:
+    from content import FEEDBACK as CONTENT_FEEDBACK
     from content import SITE
 
     @app.context_processor
@@ -146,6 +178,8 @@ def _register_filters(app: Flask) -> None:
             # anonymous visitors, whose proxy has no is_admin at all.
             "is_admin": bool(getattr(current_user, "is_admin", False)),
             "import_enabled": bool(app.config.get("ANTHROPIC_API_KEY")),
+            "feedback": CONTENT_FEEDBACK,
+            "feedback_enabled": bool(app.config.get("FEEDBACK_ENABLED")),
         }
 
     @app.template_filter("static_v")

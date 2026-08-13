@@ -1,0 +1,80 @@
+{# The feedback section at the foot of the home page.
+
+   Structurally identical to the contact block on dustincremascoli.com and using
+   the same class names, so it inherits the same styling from site.css rather
+   than carrying a second look-alike implementation. Expects `feedback_form`. #}
+{% if feedback_enabled %}
+<section class="section section--contact" id="feedback">
+  <div class="container contact-grid">
+
+    <div class="contact-copy">
+      <p class="eyebrow">Feedback</p>
+      <h2>{{ feedback.heading }}</h2>
+      <p class="lede">{{ feedback.body }}</p>
+
+      <ul class="contact-list">
+        <li>
+          <svg class="ico" aria-hidden="true"><use href="#i-mail"></use></svg>
+          <a href="mailto:{{ feedback.email }}">{{ feedback.email }}</a>
+        </li>
+        {% for s in feedback.socials %}
+          <li>
+            <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
+            <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer">{{ s.label }}</a>
+          </li>
+        {% endfor %}
+        <li>
+          <svg class="ico" aria-hidden="true"><use href="#i-external"></use></svg>
+          <a href="{{ site.main_site }}" target="_blank" rel="noopener noreferrer">dustincremascoli.com</a>
+        </li>
+      </ul>
+    </div>
+
+    <form class="contact-form" method="post" action="{{ url_for('main.feedback') }}">
+      {# No novalidate: the browser's own required/minlength/type=email
+         checks give inline errors at the field, which is better than a
+         round trip. Server-side validation still runs and is authoritative. #}
+      {{ feedback_form.hidden_tag() }}
+
+      {# Rendered here rather than in the page-top flash strip: after submitting,
+         the browser returns to #feedback, so a confirmation at the top of the
+         page would be off-screen. See base.html. #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, msg in messages if category.startswith('feedback') %}
+          <p class="flash flash--{{ 'success' if category == 'feedback_success' else 'error' }}"
+             role="status">
+            <svg class="ico" aria-hidden="true">
+              <use href="#i-{{ 'check' if category == 'feedback_success' else 'alert' }}"></use>
+            </svg>
+            <span>{{ msg }}</span>
+          </p>
+        {% endfor %}
+      {% endwith %}
+
+      <div class="field">
+        <label for="f-name">Name</label>
+        <input id="f-name" name="name" type="text" required maxlength="120" autocomplete="name">
+      </div>
+      <div class="field">
+        <label for="f-email">Email</label>
+        <input id="f-email" name="email" type="email" required maxlength="200" autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="f-message">Message</label>
+        <textarea id="f-message" name="message" rows="5" required minlength="10" maxlength="5000"></textarea>
+      </div>
+
+      {# Honeypot: hidden from people, tempting to bots. #}
+      <div class="field field--trap" aria-hidden="true">
+        <label for="f-website">Website</label>
+        <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <button class="btn btn--primary" type="submit" data-busy="Sending…">
+        Send message <svg class="ico" aria-hidden="true"><use href="#i-arrow"></use></svg>
+      </button>
+    </form>
+
+  </div>
+</section>
+{% endif %}

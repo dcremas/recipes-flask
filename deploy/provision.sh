@@ -71,6 +71,12 @@ UPLOAD_DIR=${UPLOADS}
 # Optional: enables 'import a recipe from a photo'. Leave blank to disable.
 ANTHROPIC_API_KEY=
 SESSION_COOKIE_SECURE=1
+FEEDBACK_ENABLED=1
+MAIL_BACKEND=auto
+MAIL_FROM=dustincremascoli@gmail.com
+MAIL_TO=dustincremascoli@gmail.com
+SES_REGION=us-east-2
+MESSAGES_FILE=/var/lib/recipes/feedback.jsonl
 EOF
   echo "  wrote $ENVDIR/recipes.env — set the database password in it"
 else

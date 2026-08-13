@@ -184,7 +184,12 @@ class Recipes(db.Model):
             # photo rather than rendering a broken image.
         bundled = self.bundled_image
         if bundled:
-            return os.path.join(current_app.static_folder, *bundled.split("/")[1:])
+            # bundled_image returns a static-relative path ("img/recipes/x.jpg"),
+            # so every segment is needed. Slicing off the first one silently
+            # produced static/recipes/x.jpg, which never exists — the PDF then
+            # rendered with no photo at all while the web pages, which go through
+            # url_for("static"), still looked correct.
+            return os.path.join(current_app.static_folder, *bundled.split("/"))
         return None
 
     @property

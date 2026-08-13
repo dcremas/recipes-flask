@@ -6,7 +6,9 @@ typos fixed ("their are" -> "there are", "worthly" -> "worthy",
 
 Every invitation to sign up and contribute has since been removed. The site is
 read-and-print for visitors and authored only by the admin, so copy promising
-otherwise was pointing at a door that is no longer there.
+otherwise was pointing at a door that is no longer there. Feedback is the one
+thing a visitor can still send, and FEEDBACK below is a working form rather than
+a description of one.
 """
 
 SITE = {
@@ -59,9 +61,27 @@ FEATURES = [
         "title": "Find it fast",
         "body": "Filter by category, or switch to the table view to size up the whole collection at once.",
     },
-    {
-        "icon": "chat",
-        "title": "Give feedback",
-        "body": "Anything that could be improved — this is a work in progress, so feel free to say so.",
-    },
 ]
+
+# The feedback section at the foot of the home page. Mirrors the contact block on
+# dustincremascoli.com — same markup, same styles, same delivery chain.
+#
+# The address here is the one already published on the main site, deliberately
+# NOT the ADMIN_EMAIL used to sign in: publishing the login address would hand
+# out half of the admin credential for no benefit.
+FEEDBACK = {
+    "heading": "Tell us how a recipe turned out.",
+    "body": (
+        "Found a quantity that looks wrong, a step that needs explaining, or a "
+        "family recipe that belongs here? Send it along."
+    ),
+    "email": "dustincremascoli@gmail.com",
+    "socials": [
+        {"label": "GitHub", "href": "https://github.com/dcremas", "icon": "github"},
+        {
+            "label": "LinkedIn",
+            "href": "https://www.linkedin.com/in/dustin-cremascoli-662105423/",
+            "icon": "linkedin",
+        },
+    ],
+}

@@ -15,3 +15,6 @@ Pillow==12.3.0
 # Recipe-from-photo transcription. Only imported by the import route.
 anthropic==0.116.0
 pydantic==2.12.3
+# SES delivery for the feedback form. Imported lazily — without it, feedback
+# falls through to SMTP and then to MESSAGES_FILE.
+boto3==1.40.68

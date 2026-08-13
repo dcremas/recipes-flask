@@ -42,7 +42,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 import photos
 from app import db, login_manager
 from content import FEATURES, HERO
-from forms import DeleteForm, LoginForm, RecipeForm, ScanForm
+from forms import DeleteForm, FeedbackForm, LoginForm, RecipeForm, ScanForm
 from models import Authors, Recipes
 
 bp = Blueprint("main", __name__)
@@ -142,6 +142,7 @@ def home():
         featured=featured,
         total=total,
         category_count=category_count,
+        feedback_form=FeedbackForm(),
     )
 
 
@@ -181,6 +182,64 @@ def recipe(recipe_id: int):
     if item is None:
         abort(404)
     return render_template("recipe.html", recipe=item, delete_form=DeleteForm())
+
+
+@bp.route("/feedback", methods=["POST"])
+def feedback():
+    """Handle the feedback form at the foot of the home page.
+
+    Post/redirect/get, like the contact form on the main site: every outcome ends
+    in a redirect back to #feedback, so a refresh cannot resend the message and
+    the visitor lands where the form is.
+    """
+    import mail
+
+    if not mail.enabled():
+        abort(404)
+
+    form = FeedbackForm()
+    back = redirect(url_for("main.home", _anchor="feedback"))
+
+    # A bot that filled the hidden field gets the success page and nothing else.
+    # Telling it that it failed only teaches it to stop filling the field.
+    if form.website.data and form.website.data.strip():
+        flash("Thanks — your message has been sent.", "feedback_success")
+        return back
+
+    if not form.validate_on_submit():
+        # Field errors rather than one generic message, so the visitor knows
+        # which box to fix. CSRF failures land here too.
+        for field in (form.name, form.email, form.message):
+            for err in field.errors:
+                flash(f"{field.label.text}: {err}", "feedback_error")
+        # getattr, not attribute access: Flask-WTF only adds csrf_token to the
+        # form when CSRF is enabled, so a direct reference raises under test.
+        csrf = getattr(form, "csrf_token", None)
+        if csrf is not None and csrf.errors:
+            flash(
+                "This page was open too long and the security token expired. "
+                "Please send it again.",
+                "feedback_error",
+            )
+        return back
+
+    if _rate_limited("feedback", limit=5, window=3600):
+        flash("That's several messages in a row — try again a little later.", "feedback_error")
+        return back
+
+    delivered = mail.deliver(
+        form.name.data.strip(), form.email.data.strip(), form.message.data.strip()
+    )
+    if delivered:
+        flash("Thanks — your message is on its way.", "feedback_success")
+    else:
+        # Never claim it was emailed when it wasn't; it is on disk either way.
+        flash(
+            "Thanks — your message has been recorded and we'll take a look. "
+            f"You can also reach us directly at {current_app.config['MAIL_TO']}.",
+            "feedback_success",
+        )
+    return back
 
 
 @bp.route("/media/<path:filename>")

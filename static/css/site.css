@@ -115,11 +115,20 @@
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
 
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* No scroll-behavior: smooth here. Smooth in-page scrolling for *clicks* is done
+   in site.js, which sets its own behavior and offsets the sticky header. Setting
+   it in CSS as well made the browser animate load-time fragment navigation
+   (/#feedback), and any layout shift while that animation ran cancelled it —
+   leaving the visitor stranded ~64px down the page instead of at the section
+   they asked for. Instant is the right behavior for a fragment on load. */
+html { -webkit-text-size-adjust: 100%; }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Keeps an anchored section clear of the sticky header when the browser jumps to
+   a fragment; site.js applies the same offset for clicks. */
+:target { scroll-margin-top: 5.5rem; }
 
 body {
   background: var(--bg);
@@ -422,6 +431,8 @@ p  { text-wrap: pretty; }
   box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .field textarea { resize: vertical; min-height: 120px; }
+/* Honeypot — off-screen rather than display:none, which some bots detect. */
+.field--trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 .contact-form .btn { justify-self: start; margin-top: .3rem; }
 
 /* ---------------------------------------------------------------- flashes */

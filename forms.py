@@ -69,6 +69,29 @@ class RecipeForm(FlaskForm):
     # one would be dead code that reads like a safeguard.
 
 
+class FeedbackForm(FlaskForm):
+    """The feedback form at the foot of the home page.
+
+    Bounds match the contact form on dustincremascoli.com so the two behave
+    identically. Unlike that one this is a FlaskForm, which adds a CSRF token —
+    invisible to the visitor, and one less way for the endpoint to be abused
+    from another origin.
+    """
+
+    name = StringField("Name", validators=[DataRequired(), Length(min=2, max=120)])
+    email = EmailField("Email", validators=[DataRequired(), Email(), Length(max=200)])
+    message = TextAreaField(
+        "Message", validators=[DataRequired(), Length(min=10, max=5000)]
+    )
+    # Hidden from people, tempting to bots. Checked in the route so a hit can be
+    # silently accepted rather than explained to the bot.
+    website = StringField("Website", validators=[Optional()])
+    submit = SubmitField("Send message")
+
+    def trapped(self) -> bool:
+        return bool((self.website.data or "").strip())
+
+
 class ScanForm(FlaskForm):
     """Upload a photograph *of* a recipe, to be transcribed into the form.
 

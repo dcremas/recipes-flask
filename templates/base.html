@@ -43,7 +43,11 @@
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flash-wrap container" role="status" aria-live="polite">
-        {% for category, msg in messages %}
+        {# feedback_* messages are rendered inside the feedback section instead,
+           where the form is. Left in this global strip they would appear at the
+           top of the page while the visitor is scrolled to the foot of it, so
+           the confirmation would never be seen. #}
+        {% for category, msg in messages if not category.startswith('feedback') %}
           <p class="flash flash--{{ category }}">
             <svg class="ico" aria-hidden="true"><use href="#i-{{ 'check' if category == 'success' else 'alert' }}"></use></svg>
             <span>{{ msg }}</span>

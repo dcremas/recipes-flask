@@ -49,6 +49,12 @@ def app(tmp_path):
             # Import is off unless a test turns it on, so no test can reach the
             # real API by accident.
             "ANTHROPIC_API_KEY": "",
+            # No transport configured, so feedback exercises the file backend and
+            # no test can send real mail. MAIL_BACKEND stays "auto" so the SES and
+            # SMTP branches are still walked (and correctly decline).
+            "MAIL_FROM": None,
+            "SMTP_HOST": None,
+            "MESSAGES_FILE": str(tmp_path / "feedback.jsonl"),
         }
     )
     os.makedirs(application.config["UPLOAD_DIR"], exist_ok=True)
@@ -976,3 +982,223 @@ class TestImport:
         assert out["ingredients"] == "water\nsalt", "blank entries must be dropped"
         assert out["instructions"] == "boil\nserve"
         assert out["tips"] == ""
+
+
+class TestPdfPhotos:
+    """The PDF tests above assert page count only, which is how a silently
+    missing photo got shipped: the document still rendered, still fitted one
+    page, and simply had no image on it."""
+
+    @staticmethod
+    def _image_count(data: bytes) -> int:
+        import io
+
+        from pypdf import PdfReader
+
+        page = PdfReader(io.BytesIO(data)).pages[0]
+        xobjects = page["/Resources"].get("/XObject")
+        if xobjects is None:
+            return 0
+        return sum(
+            1
+            for ref in xobjects.get_object().values()
+            if ref.get_object().get("/Subtype") == "/Image"
+        )
+
+    def test_a_bundled_photo_reaches_the_pdf(self, client, app):
+        """Regression: photo_path sliced a segment off the static-relative path,
+        so every pre-upload photo resolved to a file that does not exist. The web
+        pages went through url_for("static") and still looked right, so only the
+        PDF was affected — and only if you looked at one."""
+        with app.app_context():
+            item = next(
+                (
+                    r
+                    for r in db.session.execute(db.select(Recipes)).scalars()
+                    if r.image_filename is None and r.bundled_image
+                ),
+                None,
+            )
+            if item is None:
+                pytest.skip("fixture data has no recipe with a bundled photo")
+            rid = item.id
+            assert os.path.isfile(item.photo_path), (
+                f"photo_path must point at a real file, got {item.photo_path}"
+            )
+        assert self._image_count(client.get(f"/recipes/{rid}.pdf").data) == 1
+
+    def test_an_uploaded_photo_reaches_the_pdf(self, client, user, app):
+        with app.app_context():
+            item = Recipes(
+                author_id=user, title="Pdf Photo", category="Testing",
+                ingredients="a", instructions="b",
+                image_filename=photos.save(make_image(size=(800, 600)), "pdfphoto"),
+            )
+            db.session.add(item)
+            db.session.commit()
+            rid = item.id
+        try:
+            assert self._image_count(client.get(f"/recipes/{rid}.pdf").data) == 1
+        finally:
+            with app.app_context():
+                db.session.delete(db.session.get(Recipes, rid))
+                db.session.commit()
+
+    def test_a_photoless_recipe_pdf_has_no_image(self, client, user, app):
+        """The other direction: no photo must mean no image, not a broken one."""
+        with app.app_context():
+            item = Recipes(
+                author_id=user,
+                # A title that slugifies to something with no bundled file.
+                title="Zzz No Photo Here", category="Testing",
+                ingredients="a", instructions="b",
+            )
+            db.session.add(item)
+            db.session.commit()
+            rid = item.id
+            assert item.photo_path is None
+        try:
+            resp = client.get(f"/recipes/{rid}.pdf")
+            assert resp.status_code == 200
+            assert self._image_count(resp.data) == 0
+        finally:
+            with app.app_context():
+                db.session.delete(db.session.get(Recipes, rid))
+                db.session.commit()
+
+
+# --------------------------------------------------------------------------
+# Feedback form
+# --------------------------------------------------------------------------
+def submit_feedback(client, **overrides):
+    data = {
+        "name": "Aunt Marie",
+        "email": "marie@example.com",
+        "message": "The pancakes needed more milk than the recipe says.",
+    }
+    data.update(overrides)
+    return client.post("/feedback", data=data)
+
+
+def read_messages(app):
+    import json
+
+    path = app.config["MESSAGES_FILE"]
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh if line.strip()]
+
+
+class TestFeedback:
+    def test_the_section_renders_on_the_home_page(self, client):
+        html = client.get("/").get_data(as_text=True)
+        assert 'id="feedback"' in html
+        assert 'action="/feedback"' in html
+        # Reuses the main site's contact classes, so styling can't drift apart.
+        assert "contact-grid" in html and "contact-form" in html
+        assert "field--trap" in html, "honeypot must be present"
+
+    def test_no_account_needed(self, client, app):
+        """It is the one thing a visitor can do besides read — must not be gated."""
+        resp = submit_feedback(client)
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("#feedback")
+        assert len(read_messages(app)) == 1
+
+    def test_message_is_recorded_with_its_content(self, client, app):
+        submit_feedback(client, message="Step 3 is missing the oven temperature.")
+        records = read_messages(app)
+        assert len(records) == 1
+        assert records[0]["name"] == "Aunt Marie"
+        assert records[0]["email"] == "marie@example.com"
+        assert "oven temperature" in records[0]["message"]
+        assert records[0]["at"] and records[0]["ip"]
+
+    def test_undelivered_message_is_never_called_sent(self, client, app):
+        """With no transport configured the visitor must be told it was recorded,
+        not that it is on its way — the wording tracks what actually happened."""
+        submit_feedback(client)
+        html = client.get("/").get_data(as_text=True)
+        assert "has been recorded" in html
+        assert "on its way" not in html
+
+    def test_delivered_message_says_sent_and_is_not_filed(
+        self, client, app, monkeypatch
+    ):
+        import mail
+
+        monkeypatch.setattr(mail, "_send_smtp", lambda msg: True)
+        app.config["SMTP_HOST"] = "smtp.example.invalid"
+        submit_feedback(client)
+        assert "on its way" in client.get("/").get_data(as_text=True)
+        assert read_messages(app) == [], "a delivered message needs no fallback copy"
+
+    def test_a_short_message_is_rejected_per_field(self, client, app):
+        submit_feedback(client, message="too short")
+        html = client.get("/").get_data(as_text=True)
+        assert "Message:" in html
+        assert read_messages(app) == []
+
+    def test_a_bad_email_is_rejected(self, client, app):
+        submit_feedback(client, email="not-an-email")
+        assert "Email:" in client.get("/").get_data(as_text=True)
+        assert read_messages(app) == []
+
+    def test_a_missing_name_is_rejected(self, client, app):
+        submit_feedback(client, name="")
+        assert "Name:" in client.get("/").get_data(as_text=True)
+        assert read_messages(app) == []
+
+    def test_honeypot_is_silently_accepted_and_stored_nowhere(self, client, app):
+        """A bot must get the success page — telling it that it failed only
+        teaches it to leave the field alone next time."""
+        resp = submit_feedback(client, website="http://spam.example")
+        assert resp.status_code == 302
+        assert "has been sent" in client.get("/").get_data(as_text=True)
+        assert read_messages(app) == []
+
+    def test_flooding_is_rate_limited(self, client, app):
+        for _ in range(5):
+            submit_feedback(client)
+        submit_feedback(client)
+        assert "several messages in a row" in client.get("/").get_data(as_text=True)
+        assert len(read_messages(app)) == 5, "the 6th must not be stored"
+
+    def test_confirmation_appears_in_the_section_not_the_page_top(self, client):
+        """The redirect returns to #feedback, so a confirmation rendered in the
+        global flash strip at the top of the page would never be seen."""
+        submit_feedback(client)
+        html = client.get("/").get_data(as_text=True)
+        section = html.split('id="feedback"', 1)[1]
+        assert "has been recorded" in section
+        assert "has been recorded" not in html.split('id="feedback"', 1)[0]
+
+    def test_disabling_it_removes_both_the_section_and_the_route(self, client, app):
+        app.config["FEEDBACK_ENABLED"] = False
+        assert 'id="feedback"' not in client.get("/").get_data(as_text=True)
+        assert submit_feedback(client).status_code == 404
+
+    def test_get_is_not_routable(self, client):
+        assert client.get("/feedback").status_code == 405
+
+    def test_a_write_failure_is_logged_not_a_500(self, client, app, caplog):
+        """If even the file cannot be written, the visitor still gets a page and
+        the message survives in the log — it is the only copy left."""
+        app.config["MESSAGES_FILE"] = "/proc/definitely/not/writable/f.jsonl"
+        with caplog.at_level("ERROR"):
+            assert submit_feedback(client).status_code == 302
+        assert "FEEDBACK LOST" in caplog.text
+
+
+class TestHomeCards:
+    def test_the_dead_feedback_card_is_gone(self, client):
+        """It described something the site could not do; the section below does."""
+        html = client.get("/").get_data(as_text=True)
+        cards = html.split('id="feedback"', 1)[0]
+        assert "Give feedback" not in cards
+
+    def test_three_cards_remain(self, client):
+        html = client.get("/").get_data(as_text=True)
+        assert "card-grid--3" in html
+        assert "card-grid--4" not in html
