@@ -11,6 +11,7 @@ models/forms/routes in their own modules. Run with gunicorn in production; the
 
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 from datetime import datetime, timezone
@@ -44,8 +45,28 @@ def _database_uri() -> str:
     return uri
 
 
+def _adopt_gunicorn_logging(app: Flask) -> None:
+    """Make the factory's own log lines visible in production.
+
+    Under gunicorn nothing ever attaches a handler to Flask's `app.logger`, so
+    records fall through to logging's handler of last resort — which writes to
+    stderr but *only* at WARNING and above. Every `app.logger.info` the factory
+    emits is therefore silently dropped in production while appearing fine
+    locally, which is how the boot summary below came to be unreadable on the
+    one box where it matters. Borrowing gunicorn's handlers and level fixes it
+    without configuring logging twice; when gunicorn is not the host (tests,
+    `flask run`) there are no handlers to borrow and this does nothing.
+    """
+    gunicorn_logger = logging.getLogger("gunicorn.error")
+    if gunicorn_logger.handlers:
+        app.logger.handlers = gunicorn_logger.handlers
+        app.logger.setLevel(gunicorn_logger.level)
+
+
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
+    # First, so that every warning and summary below is actually emitted.
+    _adopt_gunicorn_logging(app)
 
     secret = os.getenv("SECRET_KEY")
     if not secret:
@@ -86,8 +107,25 @@ def create_app(config: dict | None = None) -> Flask:
         #     static/ would be erased by the next deploy.
         # Both failure modes are silent, which is why this is not a static/ path.
         UPLOAD_DIR=os.getenv("UPLOAD_DIR") or "",
+        # --- Recipe-from-photo transcription -------------------------------
+        # Anthropic and Gemini are interchangeable for this job, so the provider
+        # is configuration. 'auto' uses whichever key is present, preferring
+        # Gemini; naming one explicitly pins it. See importer.resolve().
+        IMPORT_PROVIDER=(os.getenv("IMPORT_PROVIDER") or "auto").strip().lower(),
         ANTHROPIC_API_KEY=(os.getenv("ANTHROPIC_API_KEY") or "").strip(),
-        IMPORT_MODEL=os.getenv("IMPORT_MODEL") or "claude-opus-5",
+        # GOOGLE_API_KEY is the other name Google's own SDK reads, accepted here
+        # so a key pasted under either name works.
+        GEMINI_API_KEY=(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip(),
+        # Optional model pins, per provider so one cannot break the other when
+        # IMPORT_PROVIDER is flipped. IMPORT_MODEL is what the Anthropic-only
+        # version of this app used, so it is still honored rather than ignored.
+        IMPORT_MODEL_ANTHROPIC=(os.getenv("IMPORT_MODEL_ANTHROPIC") or os.getenv("IMPORT_MODEL") or "").strip(),
+        IMPORT_MODEL_GEMINI=(os.getenv("IMPORT_MODEL_GEMINI") or "").strip(),
+        # Bill Gemini through Vertex AI on Application Default Credentials rather
+        # than an AI Studio key. This is the path GCP credits actually apply to.
+        GEMINI_USE_VERTEX=os.getenv("GEMINI_USE_VERTEX", "0") not in ("0", "", "false", "False"),
+        GOOGLE_CLOUD_PROJECT=(os.getenv("GOOGLE_CLOUD_PROJECT") or "").strip(),
+        GOOGLE_CLOUD_LOCATION=(os.getenv("GOOGLE_CLOUD_LOCATION") or "").strip(),
         # Feedback form. Same variable names as the main site so both are
         # operated identically; delivery order is SES -> SMTP -> file.
         FEEDBACK_ENABLED=os.getenv("FEEDBACK_ENABLED", "1") not in ("0", "false", "False"),
@@ -124,8 +162,15 @@ def create_app(config: dict | None = None) -> Flask:
         # Uploads will fail loudly at the point of use instead.
         app.logger.error("UPLOAD_DIR %s is not usable: %s", app.config["UPLOAD_DIR"], exc)
 
-    if not app.config["ANTHROPIC_API_KEY"]:
-        app.logger.warning("ANTHROPIC_API_KEY unset — 'import from photo' is disabled.")
+    # Say which account the transcription bill will land on, at boot, in the
+    # journal — the alternative is finding out from a statement.
+    import importer
+
+    with app.app_context():
+        if importer.available():
+            app.logger.info("'import from photo' %s", importer.describe())
+        else:
+            app.logger.warning("'import from photo' is disabled — %s", importer.unavailable_reason())
 
     # Feedback fallback file. Must be writable by the service: the unit sets
     # ProtectSystem=strict, so this belongs under a ReadWritePaths entry, not in
@@ -168,6 +213,7 @@ def _register_filters(app: Flask) -> None:
 
     @app.context_processor
     def inject_globals():
+        import importer
         from flask_login import current_user
 
         return {
@@ -177,7 +223,10 @@ def _register_filters(app: Flask) -> None:
             # there is a single place to get it wrong. getattr keeps it False for
             # anonymous visitors, whose proxy has no is_admin at all.
             "is_admin": bool(getattr(current_user, "is_admin", False)),
-            "import_enabled": bool(app.config.get("ANTHROPIC_API_KEY")),
+            # Resolved per request, not cached at boot, so flipping the provider
+            # or a key in config is reflected without a code path of its own.
+            "import_enabled": importer.available(),
+            "import_provider_label": importer.label(),
             "feedback": CONTENT_FEEDBACK,
             "feedback_enabled": bool(app.config.get("FEEDBACK_ENABLED")),
         }

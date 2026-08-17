@@ -68,7 +68,10 @@ FLASK_ENV=production
 # The only account allowed to add, edit or delete recipes.
 ADMIN_EMAIL=CHANGE_ME
 UPLOAD_DIR=${UPLOADS}
-# Optional: enables 'import a recipe from a photo'. Leave blank to disable.
+# Optional: enables 'import a recipe from a photo'. Leave both keys blank to
+# disable it. IMPORT_PROVIDER picks between them: gemini | anthropic | auto.
+IMPORT_PROVIDER=auto
+GEMINI_API_KEY=
 ANTHROPIC_API_KEY=
 SESSION_COOKIE_SECURE=1
 FEEDBACK_ENABLED=1

@@ -555,8 +555,11 @@ def import_recipe():
     form = ScanForm()
     if not importer.available():
         # Configuration, not a permission problem — say which is missing.
-        flash("Photo import needs ANTHROPIC_API_KEY set on the server.", "error")
-        return render_template("import.html", form=form, enabled=False), 503
+        flash(importer.unavailable_reason(), "error")
+        return render_template(
+            "import.html", form=form, enabled=False,
+            reason=importer.unavailable_reason(),
+        ), 503
 
     if form.validate_on_submit():
         if _rate_limited("import", limit=20, window=3600):

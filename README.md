@@ -11,19 +11,20 @@ app.py            application factory, config, error handlers
 content.py        site copy (hero, feature blurbs, social links)
 models.py         Authors, Recipes + display helpers
 photos.py         upload validation, resizing and storage
-importer.py       recipe-from-photo transcription (Claude vision)
+importer.py       recipe-from-photo transcription (Claude or Gemini vision)
 forms.py          WTForms definitions and validation
 routes.py         every route
 templates/        Jinja templates; partials/ holds nav, footer, icons, field macro
 static/           css, js, fonts, and the bundled recipe photos under img/recipes/
-tests/            pytest suite (76 tests) — run against a clone, never production
+tests/            pytest suite (106 tests) — run against a clone, never production
 deploy/           systemd unit, nginx vhost, provision/deploy scripts, SQL
 ```
 
 Stack: Flask 3 · SQLAlchemy 2 · Flask-Login · WTForms · Postgres 16 (same box) ·
 gunicorn (2 workers, unix socket) · WeasyPrint for PDFs · Pillow for photos ·
-Anthropic SDK for transcription. No frontend framework, no webfonts, no CDN —
-the CSS and JS are hand-written and served from `static/`.
+Anthropic or Gemini SDK for transcription, whichever is configured. No frontend
+framework, no webfonts, no CDN — the CSS and JS are hand-written and served from
+`static/`.
 
 ## Who can do what
 
@@ -91,8 +92,12 @@ once by systemd's `EnvironmentFile` — **editing it needs
 | `SECRET_KEY` | yes in prod | Session signing. Missing in production raises at boot; elsewhere a random key is generated with a warning (sessions then reset on restart). |
 | `ADMIN_EMAIL` | yes to author | The one account allowed to add/edit/delete. Compared lowercase against `authors.email`. |
 | `UPLOAD_DIR` | yes for photos | Where uploads are written. **Must be outside the app tree** — see Photos. Defaults to the instance folder for local work. |
-| `ANTHROPIC_API_KEY` | no | Enables import-from-photo. Blank hides the feature entirely. |
-| `IMPORT_MODEL` | no | Defaults to `claude-opus-5`. |
+| `IMPORT_PROVIDER` | no | Who transcribes: `gemini`, `anthropic`, or `auto` (default). `auto` uses whichever key is set, preferring Gemini. A named provider without its key leaves import **off** rather than falling back to the other account. |
+| `GEMINI_API_KEY` | no | Enables import-from-photo on Google. `GOOGLE_API_KEY` is accepted as an alias. |
+| `ANTHROPIC_API_KEY` | no | Enables import-from-photo on Claude. Both keys blank hides the feature entirely. |
+| `IMPORT_MODEL_GEMINI` | no | Defaults to `gemini-3.7-flash`. Pin a version, not the `gemini-flash-latest` alias — an alias that moves changes behavior and price with no deploy and no log line. |
+| `IMPORT_MODEL_ANTHROPIC` | no | Defaults to `claude-opus-5`. `IMPORT_MODEL` is the old name and is still honored. |
+| `GEMINI_USE_VERTEX` | no | `1` bills Gemini through Vertex AI on Application Default Credentials instead of an API key — the path GCP credits apply to. Needs `GOOGLE_CLOUD_PROJECT` (and usually `GOOGLE_APPLICATION_CREDENTIALS`); `GOOGLE_CLOUD_LOCATION` defaults to `us-central1`. |
 | `SESSION_COOKIE_SECURE` | no | Set `0` only when serving plain HTTP, or cookies won't work. |
 
 `MAX_CONTENT_LENGTH` is 12 MB in code; nginx's `client_max_body_size` is 14 MB.
@@ -159,10 +164,25 @@ inferring it, and to set `unreadable` rather than guess at a bad photo.
 
 The image is normalized by `photos.normalize()` first, which caps resolution (so
 cost is predictable), strips EXIF, and rejects non-images before anything is sent
-anywhere. Roughly a cent or two per import. The photo is sent to the API and is
-not stored on the server.
+anywhere. The photo is sent to whichever API is configured and is not stored on
+the server. Cost per import depends on the provider and model in use — check
+Billing → Reports against the actual SKU rather than trusting a number written
+here, since the model can be repinned without this file changing.
 
-Enabled by `ANTHROPIC_API_KEY`. Unset, the feature is hidden from the console and
+Two providers can do the transcription — Claude or Gemini — because for this job
+they are interchangeable: one image in, one JSON object out, validated against
+the same Pydantic schema either way. `IMPORT_PROVIDER` chooses; the SDKs are
+imported inside their own branch, so only the one in use has to be installed and
+neither can stop the site booting. Switching providers is an env edit and a
+`systemctl restart recipes-web`, not a deploy.
+
+Two rules the code enforces because both failure modes are silent and cost money:
+a provider named explicitly is **never** replaced by a fallback if its key is
+missing (import just goes off, naming the variable to set), and model pins are
+per-provider so a leftover `IMPORT_MODEL_GEMINI` cannot be sent to Anthropic. The
+page's privacy line names whichever service is actually receiving the photo.
+
+Enabled by either key. With neither, the feature is hidden from the console and
 `/recipes/import` returns an explained 503 rather than a traceback.
 
 ## Behavior worth knowing
@@ -220,11 +240,11 @@ index on `lower(email)` will then break every fixture.
 DATABASE_URL=postgresql+psycopg:///recipes_test SECRET_KEY=test .venv/bin/python -m pytest -q
 ```
 
-76 tests against a real Postgres clone — no mocked database. The suite creates
+106 tests against a real Postgres clone — no mocked database. The suite creates
 and deletes its own authors, recipes and photo files, pins `ADMIN_EMAIL` to its
 own fixture address so the admin gate is tested in both directions, points
-`UPLOAD_DIR` at a per-test `tmp_path`, and leaves `ANTHROPIC_API_KEY` empty so no
-test can reach the real API (the import tests monkeypatch `importer.extract`).
+`UPLOAD_DIR` at a per-test `tmp_path`, and leaves both transcription keys empty so no
+test can reach a real API (the import tests monkeypatch `importer.extract`).
 
 It expects a clone containing at least one recipe by another author and one
 without a photo. Image fixtures are genuinely encoded via Pillow, since

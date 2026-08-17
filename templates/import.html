@@ -25,8 +25,8 @@
 
     {% if not enabled %}
       <p class="empty-state">
-        This needs <code>ANTHROPIC_API_KEY</code> set in
-        <code>/etc/recipes/recipes.env</code>, then a service restart.
+        {{ reason }} Set it in <code>/etc/recipes/recipes.env</code>, then restart
+        the service.
         <a href="{{ url_for('main.create_recipe') }}">Add a recipe by hand instead.</a>
       </p>
     {% else %}
@@ -66,9 +66,9 @@
           <li>Handwriting works, but check the quantities afterwards. It will tell you when it's unsure.</li>
         </ul>
         <p class="muted">
-          The photo is sent to Anthropic's API to be transcribed and is not stored
-          on the server. Nothing is saved to the collection until you review the
-          result and press Add recipe.
+          The photo is sent to {{ import_provider_label }} to be transcribed and
+          is not stored on the server. Nothing is saved to the collection until
+          you review the result and press Add recipe.
         </p>
       </div>
     {% endif %}

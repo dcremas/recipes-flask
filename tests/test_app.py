@@ -46,9 +46,16 @@ def app(tmp_path):
             # Per-test upload directory: uploads must never touch the real one,
             # and tmp_path gives each test a clean slate.
             "UPLOAD_DIR": str(tmp_path / "uploads"),
-            # Import is off unless a test turns it on, so no test can reach the
-            # real API by accident.
+            # Import is off unless a test turns it on, so no test can reach a
+            # real API by accident — including via a key that happens to be in
+            # the developer's own environment.
+            "IMPORT_PROVIDER": "auto",
             "ANTHROPIC_API_KEY": "",
+            "GEMINI_API_KEY": "",
+            "GEMINI_USE_VERTEX": False,
+            "GOOGLE_CLOUD_PROJECT": "",
+            "IMPORT_MODEL_ANTHROPIC": "",
+            "IMPORT_MODEL_GEMINI": "",
             # No transport configured, so feedback exercises the file backend and
             # no test can send real mail. MAIL_BACKEND stays "auto" so the SES and
             # SMTP branches are still walked (and correctly decline).
@@ -825,11 +832,13 @@ class TestImport:
         assert client.get("/recipes/import").status_code == 403
 
     def test_disabled_without_an_api_key(self, client, user):
-        """No key configured must be an explained 503, not a traceback."""
+        """No key configured must be an explained 503, not a traceback — and it
+        has to name both variables, since either one turns the feature on."""
         login(client)
         resp = client.get("/recipes/import")
         assert resp.status_code == 503
         assert b"ANTHROPIC_API_KEY" in resp.data
+        assert b"GEMINI_API_KEY" in resp.data
 
     def test_hidden_from_the_console_when_disabled(self, client, user):
         login(client)
@@ -982,6 +991,171 @@ class TestImport:
         assert out["ingredients"] == "water\nsalt", "blank entries must be dropped"
         assert out["instructions"] == "boil\nserve"
         assert out["tips"] == ""
+
+
+# --------------------------------------------------------------------------
+# Which transcription provider runs
+# --------------------------------------------------------------------------
+class TestImportProvider:
+    """The provider toggle decides which account gets billed, so every one of
+    these is a money question, not a preference."""
+
+    @staticmethod
+    def _resolve(app, **cfg):
+        import importer
+
+        with app.app_context():
+            app.config.update(cfg)
+            return importer.resolve()
+
+    def test_auto_uses_whichever_key_is_set(self, app):
+        assert self._resolve(app, ANTHROPIC_API_KEY="sk-ant-test") == "anthropic"
+        assert self._resolve(app, ANTHROPIC_API_KEY="", GEMINI_API_KEY="AIza-test") == "gemini"
+
+    def test_auto_prefers_gemini_when_both_keys_are_present(self, app):
+        """Adding the second key must not silently move the spend: whoever was
+        already running keeps running until IMPORT_PROVIDER says otherwise."""
+        assert self._resolve(
+            app, ANTHROPIC_API_KEY="sk-ant-test", GEMINI_API_KEY="AIza-test"
+        ) == "gemini"
+
+    def test_an_explicit_provider_wins_over_the_other_key(self, app):
+        assert self._resolve(
+            app, IMPORT_PROVIDER="anthropic",
+            ANTHROPIC_API_KEY="sk-ant-test", GEMINI_API_KEY="AIza-test",
+        ) == "anthropic"
+        assert self._resolve(
+            app, IMPORT_PROVIDER="gemini",
+            ANTHROPIC_API_KEY="sk-ant-test", GEMINI_API_KEY="AIza-test",
+        ) == "gemini"
+
+    def test_a_pinned_provider_without_its_key_is_off_not_a_fallback(self, app):
+        """The failure mode this guards: pin Gemini, forget the key, and quietly
+        get billed for Claude instead."""
+        assert self._resolve(
+            app, IMPORT_PROVIDER="gemini", ANTHROPIC_API_KEY="sk-ant-test",
+        ) is None
+
+    def test_an_unknown_provider_is_off(self, app):
+        assert self._resolve(
+            app, IMPORT_PROVIDER="gemeni", GEMINI_API_KEY="AIza-test",
+        ) is None
+
+    def test_vertex_needs_a_project_not_a_key(self, app):
+        """Vertex authenticates with ADC, so a project standing alone is enough
+        — and a project missing is not."""
+        assert self._resolve(
+            app, IMPORT_PROVIDER="gemini", GEMINI_USE_VERTEX=True,
+            GOOGLE_CLOUD_PROJECT="credits-project",
+        ) == "gemini"
+        assert self._resolve(
+            app, IMPORT_PROVIDER="gemini", GEMINI_USE_VERTEX=True,
+            GOOGLE_CLOUD_PROJECT="",
+        ) is None
+
+    def test_the_disabled_message_names_the_pinned_provider_s_key(self, client, user, app):
+        app.config.update(IMPORT_PROVIDER="gemini")
+        login(client)
+        resp = client.get("/recipes/import")
+        assert resp.status_code == 503
+        assert b"GEMINI_API_KEY" in resp.data
+
+    def test_the_page_names_the_service_the_photo_goes_to(self, client, user, app):
+        """The privacy line is a disclosure — it must not still say Anthropic
+        while the photo is going to Google."""
+        login(client)
+        app.config.update(GEMINI_API_KEY="AIza-test")
+        assert b"Gemini" in client.get("/recipes/import").data
+
+        app.config.update(GEMINI_API_KEY="", ANTHROPIC_API_KEY="sk-ant-test")
+        assert b"Anthropic" in client.get("/recipes/import").data
+
+    def test_models_are_pinned_per_provider(self, app):
+        """A pin left over from one provider must not be sent to the other."""
+        import importer
+
+        with app.app_context():
+            app.config.update(IMPORT_MODEL_GEMINI="gemini-2.5-pro")
+            assert importer._model_for("gemini") == "gemini-2.5-pro"
+            assert importer._model_for("anthropic") == importer.DEFAULT_MODELS["anthropic"]
+
+    def test_extract_dispatches_to_the_resolved_provider(self, app, monkeypatch):
+        import importer
+
+        seen = []
+        monkeypatch.setattr(
+            importer, "_extract_gemini",
+            lambda b, m, model: seen.append(("gemini", model)) or importer.ExtractedRecipe(
+                title="x", category="y"),
+        )
+        monkeypatch.setattr(
+            importer, "_extract_anthropic",
+            lambda b, m, model: seen.append(("anthropic", model)) or importer.ExtractedRecipe(
+                title="x", category="y"),
+        )
+        with app.app_context():
+            app.config.update(GEMINI_API_KEY="AIza-test")
+            importer.extract(b"jpeg-bytes")
+            app.config.update(
+                IMPORT_PROVIDER="anthropic", ANTHROPIC_API_KEY="sk-ant-test",
+            )
+            importer.extract(b"jpeg-bytes")
+
+        assert [p for p, _ in seen] == ["gemini", "anthropic"]
+        assert seen[0][1] == importer.DEFAULT_MODELS["gemini"]
+        assert seen[1][1] == importer.DEFAULT_MODELS["anthropic"]
+
+    def test_extract_refuses_when_nothing_is_configured(self, app):
+        import importer
+
+        with app.app_context():
+            with pytest.raises(importer.ImportError_):
+                importer.extract(b"jpeg-bytes")
+
+
+class TestBootLogging:
+    def test_the_factory_s_info_lines_survive_under_gunicorn(self):
+        """Regression: the provider summary was logged at INFO, and under
+        gunicorn nothing attaches a handler to app.logger — so it fell through
+        to logging's last-resort writer, which drops anything below WARNING. The
+        line was invisible on the only box where it answers a question."""
+        import logging
+
+        from flask import Flask
+
+        from app import _adopt_gunicorn_logging
+
+        gunicorn_logger = logging.getLogger("gunicorn.error")
+        handler = logging.NullHandler()
+        original = list(gunicorn_logger.handlers), gunicorn_logger.level
+        gunicorn_logger.handlers = [handler]
+        gunicorn_logger.setLevel(logging.INFO)
+        try:
+            app = Flask(__name__)
+            _adopt_gunicorn_logging(app)
+            assert handler in app.logger.handlers
+            assert app.logger.isEnabledFor(logging.INFO)
+        finally:
+            gunicorn_logger.handlers, gunicorn_logger.level = original
+
+    def test_it_is_a_no_op_without_gunicorn(self):
+        """Local runs and the test suite must keep Flask's own logging."""
+        import logging
+
+        from flask import Flask
+
+        from app import _adopt_gunicorn_logging
+
+        gunicorn_logger = logging.getLogger("gunicorn.error")
+        original = list(gunicorn_logger.handlers)
+        gunicorn_logger.handlers = []
+        try:
+            app = Flask(__name__)
+            before = list(app.logger.handlers)
+            _adopt_gunicorn_logging(app)
+            assert app.logger.handlers == before
+        finally:
+            gunicorn_logger.handlers = original
 
 
 class TestPdfPhotos:

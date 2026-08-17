@@ -12,9 +12,13 @@ weasyprint==69.0
 # Pillow arrives transitively via WeasyPrint, but photos.py imports it
 # directly — pin it so a WeasyPrint change cannot silently drop it.
 Pillow==12.3.0
-# Recipe-from-photo transcription. Only imported by the import route.
+# Recipe-from-photo transcription. Both are imported lazily, inside the provider
+# branch that needs them, so only the one IMPORT_PROVIDER selects has to work.
 anthropic==0.116.0
-pydantic==2.12.3
+google-genai==2.18.1
+# google-genai requires >=2.12.5, so this floor is not free to lower again
+# without dropping that provider. anthropic accepts anything <3.
+pydantic==2.13.4
 # SES delivery for the feedback form. Imported lazily — without it, feedback
 # falls through to SMTP and then to MESSAGES_FILE.
 boto3==1.40.68
