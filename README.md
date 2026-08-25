@@ -8,7 +8,9 @@ photograph of a recipe card.
 
 ```
 app.py            application factory, config, error handlers
-content.py        site copy (hero, feature blurbs, social links)
+content.py        site copy (hero, feature blurbs, social links) + `SITES`, this
+                  repo's copy of the estate-wide footer row (canonical copy lives
+                  in ../prosite_flask/content.py; ../check-footer-nav.sh checks them)
 models.py         Authors, Recipes + display helpers
 photos.py         upload validation, resizing and storage
 importer.py       recipe-from-photo transcription (Claude or Gemini vision)
@@ -16,7 +18,7 @@ forms.py          WTForms definitions and validation
 routes.py         every route
 templates/        Jinja templates; partials/ holds nav, footer, icons, field macro
 static/           css, js, fonts, and the bundled recipe photos under img/recipes/
-tests/            pytest suite (106 tests) — run against a clone, never production
+tests/            pytest suite (108 tests) — run against a clone, never production
 deploy/           systemd unit, nginx vhost, provision/deploy scripts, SQL
 ```
 
@@ -240,7 +242,7 @@ index on `lower(email)` will then break every fixture.
 DATABASE_URL=postgresql+psycopg:///recipes_test SECRET_KEY=test .venv/bin/python -m pytest -q
 ```
 
-106 tests against a real Postgres clone — no mocked database. The suite creates
+108 tests against a real Postgres clone — no mocked database. The suite creates
 and deletes its own authors, recipes and photo files, pins `ADMIN_EMAIL` to its
 own fixture address so the admin gate is tested in both directions, points
 `UPLOAD_DIR` at a per-test `tmp_path`, and leaves both transcription keys empty so no
