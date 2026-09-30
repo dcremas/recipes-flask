@@ -36,7 +36,7 @@ SITE = {
 # The cross-site footer nav
 # --------------------------------------------------------------------------- #
 #
-# The five public properties served off the one EC2 box, in the order they
+# The eight public properties served off the one EC2 box, in the order they
 # appear in the SECOND row of every footer on the estate. The bottom of a page
 # is a navigation surface, not a dead end: from here you can reach the main
 # site, the charts, the SQL demo and the API without scrolling back up.
@@ -65,6 +65,9 @@ SITES = [
         "label": "Weather API",
         "href": "https://api.dustincremascoli.com/docs",
     },
+    {"key": "pbp", "label": "Football SQL", "href": "https://pbp.dustincremascoli.com/"},
+    {"key": "plays", "label": "Play Explorer", "href": "https://pbp.dustincremascoli.com/plays/"},
+    {"key": "typing", "label": "PromptPace", "href": "https://typing.dustincremascoli.com/"},
     {"key": "recipes", "label": "Recipes", "href": "/"},
 ]
 
