@@ -32,6 +32,47 @@ SITE = {
     ],
 }
 
+# --------------------------------------------------------------------------- #
+# The cross-site footer nav
+# --------------------------------------------------------------------------- #
+#
+# The five public properties served off the one EC2 box, in the order they
+# appear in the SECOND row of every footer on the estate. The bottom of a page
+# is a navigation surface, not a dead end: from here you can reach the main
+# site, the charts, the SQL demo and the API without scrolling back up.
+#
+# `key` identifies the property and SITES_CURRENT names the one you are already
+# on. That entry is still a link; it just carries `aria-current="page"` and a
+# muted treatment, so the row is the same length on every site.
+#
+# Same-origin hrefs are RELATIVE on purpose: the footer template derives new-tab
+# behaviour from the href, so "Recipes" opens in this tab here and in a new one
+# everywhere else, with no per-site flag to keep in sync.
+#
+# THIS LIST IS DUPLICATED seven times across five repos with no shared package.
+# prosite_flask/content.py holds the canonical copy and names all seven;
+# ../check-footer-nav.sh diffs them and exits non-zero when they disagree.
+SITES = [
+    {"key": "www", "label": "Main site", "href": "https://www.dustincremascoli.com/"},
+    {
+        "key": "viz",
+        "label": "Data Viz",
+        "href": "https://www.dustincremascoli.com/visualizations",
+    },
+    {"key": "sql", "label": "SQL Explorer", "href": "https://sql.dustincremascoli.com/"},
+    {
+        "key": "api",
+        "label": "Weather API",
+        "href": "https://api.dustincremascoli.com/docs",
+    },
+    {"key": "recipes", "label": "Recipes", "href": "/"},
+]
+
+# Which entry in SITES is this codebase.
+SITES_CURRENT = "recipes"
+
+SITES_LABEL = "Everything here"
+
 HERO = {
     "greeting": "Hi, I'm Dustin Cremascoli — and this is my recipe site.",
     "lede": "A free and full repository of our family's favorite and best recipes.",

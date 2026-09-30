@@ -8,7 +8,7 @@ script rather than a leap of faith on a live deploy.
 
     export GEMINI_API_KEY=...
     .venv/bin/python tests/try_import.py path/to/recipe-card.jpg
-    .venv/bin/python tests/try_import.py card.jpg gemini-3.7-flash gemini-2.5-flash
+    .venv/bin/python tests/try_import.py card.jpg gemini-3.8-flash gemini-3.7-flash
 
 With no models named it tries the current default. With several, it runs each and
 prints them side by side, so "which model should I pin" is a measurement rather

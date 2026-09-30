@@ -1,23 +1,100 @@
+{# The footer is a second header, not a signature line.
+
+   Three rows, matching prosite_flask/templates/partials/footer.html exactly in
+   shape so the two sites read as one estate:
+
+     1. THIS SITE — the same items partials/nav.html renders at the top, under
+        the same admin/auth conditions. If Manage is in the header it is in the
+        footer; if you are signed out, neither has it.
+     2. EVERYTHING HERE — the five public properties on the EC2 box, from
+        content.SITES. Identical row on every surface nginx serves.
+     3. The credit line and socials, which is all this footer used to be.
+
+   Row 1 is written out rather than looped because this site's nav is four
+   conditional items, not a data list — content.py has no NAV here, and adding
+   one to drive four links would be more indirection than the links are worth.
+   The rule that matters is that the two blocks stay in step: touch nav.html,
+   touch this.
+
+   New-tab behaviour in row 2 is derived from the href, not from a flag: an href
+   starting with "http" is off-site and opens in a new tab. #}
 <footer class="site-footer">
-  <div class="container footer-inner">
-    <p class="footer-meta">
-      &copy; {{ year }} {{ site.owner }}. All rights reserved.
-      <span class="sep" aria-hidden="true">·</span>
-      Built with Python, Flask and Jinja2.
-      <span class="sep" aria-hidden="true">·</span>
-      <span class="footer-credit">Produced with the aid of Claude Code&#39;s Command Line tools...</span>
-    </p>
-    <ul class="footer-links">
-      {% for s in site.socials %}
-        <li>
-          <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer" aria-label="{{ s.label }}">
-            <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
-            <span>{{ s.label }}</span>
-          </a>
-        </li>
-      {% endfor %}
-      <li><a href="{{ url_for('main.recipes') }}">Recipes</a></li>
-      <li><a href="{{ site.main_site }}" target="_blank" rel="noopener noreferrer">Main site</a></li>
-    </ul>
+  <div class="container">
+
+    <nav class="footer-nav" aria-label="Footer">
+
+      <div class="footer-nav-group">
+        <p class="footer-nav-label" id="footer-nav-page">This site</p>
+        <ul class="footer-nav-list" aria-labelledby="footer-nav-page">
+          <li>
+            <a class="footer-nav-link" href="{{ url_for('main.home') }}"
+               {% if request.endpoint == 'main.home' %}aria-current="page"{% endif %}>Home</a>
+          </li>
+          <li>
+            <a class="footer-nav-link" href="{{ url_for('main.recipes') }}"
+               {% if request.endpoint == 'main.recipes' %}aria-current="page"{% endif %}>Recipes</a>
+          </li>
+          <li>
+            <a class="footer-nav-link" href="{{ url_for('main.recipes_table') }}"
+               {% if request.endpoint == 'main.recipes_table' %}aria-current="page"{% endif %}>Table</a>
+          </li>
+          {% if is_admin %}
+            <li>
+              <a class="footer-nav-link" href="{{ url_for('main.manage') }}"
+                 {% if request.endpoint == 'main.manage' %}aria-current="page"{% endif %}>Manage</a>
+            </li>
+          {% endif %}
+          {% if current_user.is_authenticated %}
+            <li><a class="footer-nav-link" href="{{ url_for('main.logout') }}">Log out</a></li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <div class="footer-nav-group">
+        <p class="footer-nav-label" id="footer-nav-sites">{{ sites_label }}</p>
+        <ul class="footer-nav-list" aria-labelledby="footer-nav-sites">
+          {% for s in sites %}
+            {% set is_ext = s.href.startswith('http') %}
+            {% set is_here = s.key == sites_current %}
+            <li>
+              <a class="footer-nav-link footer-nav-link--site{% if is_here %} is-current{% endif %}"
+                 href="{{ s.href }}"
+                 {% if is_here %}aria-current="page"{% endif %}
+                 {% if is_ext %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                <span class="nav-dot" aria-hidden="true"></span>
+                {{ s.label }}
+                {% if is_ext %}
+                  <svg class="ico ico--xs" aria-hidden="true"><use href="#i-external"></use></svg>
+                  <span class="sr-only">— opens in a new tab</span>
+                {% endif %}
+                {% if is_here %}<span class="sr-only">— you are here</span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+    </nav>
+
+    <div class="footer-inner">
+      <p class="footer-meta">
+        &copy; {{ year }} {{ site.owner }}. All rights reserved.
+        <span class="sep" aria-hidden="true">·</span>
+        Built with Python, Flask and Jinja2.
+        <span class="sep" aria-hidden="true">·</span>
+        <span class="footer-credit">Produced with the aid of Claude Code&#39;s Command Line tools...</span>
+      </p>
+      <ul class="footer-links">
+        {% for s in site.socials %}
+          <li>
+            <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer" aria-label="{{ s.label }}">
+              <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
+              <span>{{ s.label }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
   </div>
 </footer>

@@ -37,7 +37,7 @@ PROVIDERS = ("anthropic", "gemini")
 # page describes where the photo is going. Kept together so adding a provider is
 # one entry plus one extract function.
 KEY_VARS = {"anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}
-DEFAULT_MODELS = {"anthropic": "claude-opus-5", "gemini": "gemini-3.7-flash"}
+DEFAULT_MODELS = {"anthropic": "claude-opus-5", "gemini": "gemini-3.8-flash"}
 LABELS = {"anthropic": "Anthropic's API", "gemini": "Google's Gemini API"}
 
 SYSTEM = """\

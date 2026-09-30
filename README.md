@@ -97,7 +97,7 @@ once by systemd's `EnvironmentFile` — **editing it needs
 | `IMPORT_PROVIDER` | no | Who transcribes: `gemini`, `anthropic`, or `auto` (default). `auto` uses whichever key is set, preferring Gemini. A named provider without its key leaves import **off** rather than falling back to the other account. |
 | `GEMINI_API_KEY` | no | Enables import-from-photo on Google. `GOOGLE_API_KEY` is accepted as an alias. |
 | `ANTHROPIC_API_KEY` | no | Enables import-from-photo on Claude. Both keys blank hides the feature entirely. |
-| `IMPORT_MODEL_GEMINI` | no | Defaults to `gemini-3.7-flash`. Pin a version, not the `gemini-flash-latest` alias — an alias that moves changes behavior and price with no deploy and no log line. |
+| `IMPORT_MODEL_GEMINI` | no | Defaults to `gemini-3.8-flash`. Pin a version, not the `gemini-flash-latest` alias — an alias that moves changes behavior and price with no deploy and no log line. |
 | `IMPORT_MODEL_ANTHROPIC` | no | Defaults to `claude-opus-5`. `IMPORT_MODEL` is the old name and is still honored. |
 | `GEMINI_USE_VERTEX` | no | `1` bills Gemini through Vertex AI on Application Default Credentials instead of an API key — the path GCP credits apply to. Needs `GOOGLE_CLOUD_PROJECT` (and usually `GOOGLE_APPLICATION_CREDENTIALS`); `GOOGLE_CLOUD_LOCATION` defaults to `us-central1`. |
 | `SESSION_COOKIE_SECURE` | no | Set `0` only when serving plain HTTP, or cookies won't work. |

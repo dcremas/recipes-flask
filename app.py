@@ -209,7 +209,7 @@ def create_app(config: dict | None = None) -> Flask:
 
 def _register_filters(app: Flask) -> None:
     from content import FEEDBACK as CONTENT_FEEDBACK
-    from content import SITE
+    from content import SITE, SITES, SITES_CURRENT, SITES_LABEL
 
     @app.context_processor
     def inject_globals():
@@ -218,6 +218,12 @@ def _register_filters(app: Flask) -> None:
 
         return {
             "site": SITE,
+            # The cross-site row in the footer: the five public properties, the
+            # one you are already on, and the label above them. Same list on
+            # every surface the EC2 box serves — see content.SITES.
+            "sites": SITES,
+            "sites_current": SITES_CURRENT,
+            "sites_label": SITES_LABEL,
             "year": datetime.now(timezone.utc).year,
             # Every authoring control in the templates keys off this one flag, so
             # there is a single place to get it wrong. getattr keeps it False for

@@ -26,6 +26,9 @@
   --err:         #b3261e;
   --err-soft:    #fdeceb;
 
+  --live:        #16a34a;
+  --live-halo:   rgba(22,163,74,.20);
+
   --radius:      14px;
   --radius-sm:   9px;
   --radius-lg:   22px;
@@ -74,6 +77,9 @@
     --err:         #ff8b82;
     --err-soft:    #2d1614;
 
+    --live:        #34d399;
+    --live-halo:   rgba(52,211,153,.22);
+
     --shadow-sm: 0 1px 2px rgb(0 0 0 / .5);
     --shadow-md: 0 6px 18px rgb(0 0 0 / .45);
     --shadow-lg: 0 14px 34px rgb(0 0 0 / .5);
@@ -105,6 +111,9 @@
   --ok-soft:     #10291f;
   --err:         #ff8b82;
   --err-soft:    #2d1614;
+
+  --live:        #34d399;
+  --live-halo:   rgba(52,211,153,.22);
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / .5);
   --shadow-md: 0 6px 18px rgb(0 0 0 / .45);
@@ -476,6 +485,47 @@ p  { text-wrap: pretty; }
    optical height as a text-only one. */
 .footer-links .ico { width: 1.05em; height: 1.05em; }
 .footer-links a:hover { color: var(--accent); }
+
+/* The footer's two navigation rows. Identical rules to prosite_flask's copy of
+   this block — the two sites share a footer shape on purpose, so a change to
+   one belongs in the other. See partials/footer.html.
+
+   Two columns on a wide screen, stacked when they no longer fit. */
+.footer-nav {
+  display: flex; flex-wrap: wrap; gap: 1.4rem 3.2rem;
+  padding-bottom: 1.5rem; margin-bottom: 1.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.footer-nav-group { min-width: 0; }
+.footer-nav-label {
+  margin: 0 0 .5rem; color: var(--fg-faint);
+  font-size: .68rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+}
+.footer-nav-list {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: .35rem 1.35rem; list-style: none; padding: 0; margin: 0;
+}
+.footer-nav-list li { display: flex; align-items: center; }
+.footer-nav-link {
+  display: inline-flex; align-items: center; gap: .4rem;
+  color: var(--fg-muted); text-decoration: none;
+  font-size: .9rem; font-weight: 550; line-height: 1.5; padding-block: .15rem;
+}
+.footer-nav-link:hover { color: var(--accent); }
+.footer-nav-link .ico--xs { opacity: .55; }
+.footer-nav-link:hover .ico--xs { opacity: 1; }
+/* A running service on the other end, not another page of this document. This
+   site's header has no app pills, so .nav-dot is defined here rather than
+   alongside a nav rule as it is on prosite. */
+.nav-dot {
+  flex: none; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--live); box-shadow: 0 0 0 3px var(--live-halo);
+}
+.footer-nav-link--site .nav-dot { box-shadow: 0 0 0 2px var(--live-halo); }
+/* The property you are already on. Still a link — muted rather than removed, so
+   the row is the same five items on every site that renders it. */
+.footer-nav-link.is-current { color: var(--fg-faint); font-weight: 650; }
+.footer-nav-link.is-current .nav-dot { background: var(--fg-faint); box-shadow: none; }
 
 /* ------------------------------------------------------------ responsive */
 @media (max-width: 860px) {
