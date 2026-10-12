@@ -19,6 +19,11 @@
 <meta name="twitter:card" content="summary_large_image">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23c2410c'/><text y='.9em' x='50%' text-anchor='middle' font-size='58' font-family='system-ui,sans-serif' font-weight='700' fill='white'>R</text></svg>">
+{# The one webfont (Inter, 48 KB), as on the main site. Preloaded so the first
+   paint is already in it. The href must match the url() in site.css exactly --
+   NO static_v query string, or the browser fetches it twice. crossorigin is
+   required on a font preload even from the same origin. #}
+<link rel="preload" href="{{ url_for('static', filename='fonts/inter-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ 'css/site.css'|static_v }}">
 
 <script>

@@ -1,7 +1,30 @@
 /* dustincremascoli.com
-   Hand-written, no framework, no webfonts, no network requests.
+   Hand-written, no framework, no third-party requests. One webfont, self-hosted.
    Replaces the original site's HTML5 UP template + jQuery + 2.8 MB FontAwesome.
    ------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------------- font */
+/* Inter, variable weight, Latin subset: 48 KB, served from this origin and
+   preloaded by base.html. Added here 2026-10-12, matching the main site; -- until then the site used the
+   system stack only, which is SF Pro on a Mac but Segoe UI on Windows; Inter
+   makes it the same everywhere. From @fontsource-variable/inter 5.3.0 (SIL OFL
+   1.1, licence beside the file in static/fonts/). The unicode-range is
+   Fontsource's Latin range: anything outside it falls through to the system
+   stack in --sans, glyph by glyph. "swap" so text is never invisible while it
+   loads. nginx serves /static/ as immutable for 30 days and this URL carries
+   no version string, so a NEW font file must get a NEW filename (and the
+   preload in base.html with it), or visitors keep the old one for a month. */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../fonts/inter-latin-wght-normal.woff2") format("woff2-variations"),
+       url("../fonts/inter-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+                 U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+                 U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* ----------------------------------------------------------------- tokens */
 :root {
@@ -37,18 +60,20 @@
   --shadow-md: 0 4px 6px -2px rgb(16 24 40 / .05), 0 12px 16px -4px rgb(16 24 40 / .08);
   --shadow-lg: 0 8px 8px -4px rgb(16 24 40 / .04), 0 20px 24px -4px rgb(16 24 40 / .10);
 
-  --step--1: clamp(.83rem, .8rem + .12vw, .9rem);
-  --step-0:  clamp(1rem, .96rem + .18vw, 1.09rem);
-  --step-1:  clamp(1.18rem, 1.1rem + .38vw, 1.42rem);
-  --step-2:  clamp(1.45rem, 1.3rem + .75vw, 2rem);
-  --step-3:  clamp(1.8rem, 1.5rem + 1.5vw, 2.85rem);
-  --step-4:  clamp(2.2rem, 1.7rem + 2.6vw, 3.9rem);
+  /* The main site's scale, cut by about a third on 2026-10-12, and carried
+     here the same day so the two read as one family. */
+  --step--1: clamp(.8rem, .78rem + .1vw, .86rem);
+  --step-0:  1rem;
+  --step-1:  clamp(1.06rem, 1.02rem + .2vw, 1.16rem);
+  --step-2:  clamp(1.22rem, 1.14rem + .4vw, 1.42rem);
+  --step-3:  clamp(1.5rem, 1.3rem + .9vw, 1.95rem);
+  --step-4:  clamp(1.9rem, 1.55rem + 1.6vw, 2.65rem);
 
   --container: 1140px;
   --gutter: clamp(1.15rem, 3vw, 2.25rem);
-  --section-y: clamp(3.6rem, 8vw, 7rem);
+  --section-y: clamp(3.4rem, 7vw, 5.6rem);
 
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+  --sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
           "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
           "Liberation Mono", monospace;
@@ -142,7 +167,10 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--fg);
-  font: var(--step-0)/1.65 var(--sans);
+  font: var(--step-0)/1.6 var(--sans);
+  /* As on the main site: "ss03" rounds the quotes and commas, "cv05" gives the
+     lowercase l a tail. Ignored by the system fallbacks. */
+  font-feature-settings: "cv05", "ss03";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
@@ -156,7 +184,7 @@ a:hover { color: var(--accent-hover); }
 code { font-family: var(--mono); font-size: .9em; background: var(--bg-alt);
        padding: .12em .38em; border-radius: 5px; border: 1px solid var(--border); }
 
-h1, h2, h3, h4 { line-height: 1.15; letter-spacing: -.018em; font-weight: 700; text-wrap: balance; }
+h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -.022em; font-weight: 650; text-wrap: balance; }
 h1 { font-size: var(--step-4); }
 h2 { font-size: var(--step-3); }
 h3 { font-size: var(--step-1); }
@@ -183,7 +211,16 @@ p  { text-wrap: pretty; }
 
 .section-head { max-width: 62ch; margin-bottom: clamp(2rem, 4vw, 3.2rem); }
 .section-head--wide { max-width: 80ch; }
-.section-tagline { color: var(--fg-muted); font-size: var(--step-1); margin-top: .7rem; }
+.section-tagline { color: var(--fg-muted); font-size: .98rem; line-height: 1.55; margin-top: .6rem; }
+/* The main site's leader line (2026-10-12): a hairline from the heading to the
+   right, fading from the border colour into the accent -- orange here. The
+   heads are stacked (eyebrow, heading, tagline), so it runs to the column's
+   edge rather than onto a tagline beside it. */
+.section-head :is(h1, h2) { display: flex; align-items: center; gap: 1.1rem; }
+.section-head :is(h1, h2)::after {
+  content: ""; flex: 1 1 2rem; height: 1px;
+  background: linear-gradient(to right, var(--border), var(--accent));
+}
 .section-more { margin-top: clamp(1.8rem, 3vw, 2.6rem); }
 
 /* Closing prompt that walks the reader into the next section. */
@@ -207,9 +244,17 @@ p  { text-wrap: pretty; }
   border-bottom: 1px solid transparent;
   transition: border-color .2s, box-shadow .2s;
 }
-.site-header.is-stuck { border-bottom-color: var(--border); box-shadow: var(--shadow-sm); }
+.site-header.is-stuck { box-shadow: var(--shadow-sm); }
+/* The header's bottom edge is the main site's leader line (2026-10-12): border
+   colour fading to the accent, always drawn. A pseudo-element, because a border
+   cannot take a gradient. */
+.site-header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(to right, var(--border), var(--accent));
+  pointer-events: none;
+}
 
-.header-inner { display: flex; align-items: center; gap: 1rem; min-height: 68px; }
+.header-inner { display: flex; align-items: center; gap: 1rem; min-height: 62px; }
 
 .brand { display: inline-flex; align-items: center; gap: .7rem; text-decoration: none; color: inherit; margin-right: auto; }
 .brand-mark {
