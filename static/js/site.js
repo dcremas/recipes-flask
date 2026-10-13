@@ -155,3 +155,66 @@
     });
   });
 })();
+
+/* ------------------------------------------------------- unsaved-input guard */
+/* Estate link policy §5: unsaved input is protected by a prompt, not by
+   opening links in new tabs. A form marked data-unsaved-guard asks before the
+   page is left while it holds something to lose: a field that differs from
+   what the page loaded with, or — with data-unsaved-draft — anything at all,
+   for content that exists only on this page (an import draft, a POST
+   re-rendered with errors).
+
+   Submitting ANY form on the page switches the prompt off: saving, sending
+   feedback and confirming a delete are all deliberate departures. A submit
+   cancelled by the delete confirmation does not count; one that is restored
+   from the back/forward cache re-arms. With JS off there is no prompt and
+   nothing else changes. */
+(function () {
+  'use strict';
+
+  var forms = document.querySelectorAll('form[data-unsaved-guard]');
+  if (!forms.length) return;
+
+  function isDirty(form) {
+    if (form.hasAttribute('data-unsaved-draft')) return true;
+    var els = form.elements;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!el.name || el.disabled) continue;
+      var type = el.type;
+      if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'reset') continue;
+      if (type === 'file') {
+        if (el.files && el.files.length) return true;
+      } else if (type === 'checkbox' || type === 'radio') {
+        if (el.checked !== el.defaultChecked) return true;
+      } else if (el.options) {
+        for (var j = 0; j < el.options.length; j++) {
+          if (el.options[j].selected !== el.options[j].defaultSelected) return true;
+        }
+      } else if (el.value !== el.defaultValue) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  var leaving = false;
+
+  // Registered after the delete-confirmation listener above, so a cancelled
+  // confirm has already called preventDefault by the time this runs.
+  document.addEventListener('submit', function (e) {
+    if (!e.defaultPrevented) leaving = true;
+  });
+  window.addEventListener('pageshow', function () { leaving = false; });
+
+  window.addEventListener('beforeunload', function (e) {
+    if (leaving) return;
+    for (var i = 0; i < forms.length; i++) {
+      if (isDirty(forms[i])) {
+        e.preventDefault();
+        e.returnValue = true;  // legacy browsers (Chrome < 119) ignore preventDefault
+        return;
+      }
+    }
+  });
+})();

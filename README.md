@@ -62,7 +62,7 @@ way to register.
 
 | Route | Methods | Who | Notes |
 |---|---|---|---|
-| `/`, `/home` | GET | public | hero, stats, six newest recipes |
+| `/` | GET | public | hero, stats, six newest recipes |
 | `/recipes` | GET | public | card grid; `?category=` filters |
 | `/recipes/table` | GET | public | dense table view |
 | `/recipes/<id>` | GET | public | recipe detail |
@@ -76,9 +76,10 @@ way to register.
 | `/recipes/import` | GET, POST | admin | transcribe a photo |
 | `/health` | GET | ops | liveness only; does not touch Postgres, so nginx and systemd can tell "app down" from "database down" |
 
-Four addresses that predate the current URL scheme still resolve, so existing
-links and bookmarks keep working: `/create_recipe` → `/recipes/new`,
-`/recipes_table` → `/recipes/table`, and `/<id>/` → `/recipes/<id>` (301);
+Five addresses that predate the current URL scheme still resolve, so existing
+links and bookmarks keep working: `/home` → `/` (query string kept),
+`/create_recipe` → `/recipes/new`, `/recipes_table` → `/recipes/table`, and
+`/<id>/` → `/recipes/<id>` (301);
 `/create_account` → the home page (302, not 301, so a cached permanent redirect
 doesn't outlive the decision).
 

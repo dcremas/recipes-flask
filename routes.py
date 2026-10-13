@@ -6,6 +6,7 @@ existing links and bookmarks keep working:
     /create_recipe   -> /recipes/new
     /recipes_table   -> /recipes/table
     /<id>/           -> /recipes/<id>
+    /home            -> /
 
 The one exception is /create_account, which used to open a signup form. Public
 registration is gone, so it now redirects to the home page instead of 404ing an
@@ -117,7 +118,6 @@ def _safe_next(target: str | None) -> str | None:
 # Public pages
 # ---------------------------------------------------------------------------
 @bp.route("/")
-@bp.route("/home")
 def home():
     # The original hardcoded six placeholder cards pointing at "#". These are
     # the real newest recipes instead.
@@ -609,6 +609,23 @@ def health():
     from flask import jsonify
 
     return jsonify(status="ok", service="recipes")
+
+
+@bp.route("/home")
+def legacy_home():
+    """`/` is the one home URL; /home is the Heroku-era alias.
+
+    It used to be a second rule on home() itself, and url_for("main.home") built
+    /home — so the brand link, the footer, every post-login redirect and the
+    feedback form's #feedback return all pointed at a URL whose canonical tag
+    said "/". Now the alias 301s, keeping the query string. The fragment needs
+    no handling: browsers never send it, and they carry it across a redirect
+    whose Location has none, so /home#feedback lands on /#feedback.
+    """
+    target = url_for("main.home")
+    if request.query_string:
+        target += "?" + request.query_string.decode("latin-1")
+    return redirect(target, code=301)
 
 
 @bp.route("/create_account")

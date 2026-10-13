@@ -11,6 +11,7 @@ import os
 import sys
 
 import pytest
+from flask import url_for
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -165,7 +166,7 @@ class TestSlug:
 # Public pages
 # --------------------------------------------------------------------------
 class TestPublicPages:
-    @pytest.mark.parametrize("path", ["/", "/home", "/recipes", "/recipes/table"])
+    @pytest.mark.parametrize("path", ["/", "/recipes", "/recipes/table"])
     def test_ok(self, client, path):
         assert client.get(path).status_code == 200
 
@@ -196,6 +197,19 @@ class TestPublicPages:
     def test_category_filter(self, client):
         assert client.get("/recipes?category=Mexican").status_code == 200
 
+    def test_footer_links_open_in_the_same_tab(self, client):
+        """Estate link policy (2026-10-13): a browsing site's footer never
+        forces a new tab, and "Recipes" is aria-current="page" only on "/"."""
+        sites_row = 'id="footer-nav-sites"'
+        home = client.get("/").get_data(as_text=True).split("site-footer", 1)[1]
+        other = client.get("/recipes").get_data(as_text=True).split("site-footer", 1)[1]
+        for footer in (home, other):
+            assert 'target="_blank"' not in footer
+            assert "new tab" not in footer
+        assert 'aria-current="page"' in home.split(sites_row, 1)[1]
+        assert 'aria-current="page"' not in other.split(sites_row, 1)[1]
+        assert 'aria-current="true"' in other.split(sites_row, 1)[1]
+
 
 class TestLegacyUrls:
     """Old Heroku URLs must keep working."""
@@ -206,6 +220,8 @@ class TestLegacyUrls:
             ("/create_recipe", "/recipes/new"),
             ("/recipes_table", "/recipes/table"),
             ("/1/", "/recipes/1"),
+            ("/home", "/"),
+            ("/home?x=1", "/?x=1"),
         ],
     )
     def test_redirects(self, client, old, new):
@@ -217,8 +233,14 @@ class TestLegacyUrls:
         """Signup is gone, but the address is still linked from the old site."""
         resp = client.get("/create_account")
         assert resp.status_code == 302
-        # url_for("main.home") may build either of the endpoint's two rules.
-        assert resp.headers["Location"] in ("/", "/home")
+        assert resp.headers["Location"] == "/"
+
+    def test_home_url_is_the_root(self, app):
+        """BUG: url_for("main.home") built /home, so every Home link, post-login
+        redirect and the feedback form's return went to a non-canonical URL."""
+        with app.test_request_context():
+            assert url_for("main.home") == "/"
+            assert url_for("main.home", _anchor="feedback") == "/#feedback"
 
     def test_register_is_no_longer_routable(self, client):
         for method in (client.get, client.post):

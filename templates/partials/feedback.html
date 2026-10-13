@@ -12,6 +12,15 @@
       <h2>{{ feedback.heading }}</h2>
       <p class="lede">{{ feedback.body }}</p>
 
+      {# These three open in a NEW tab — the exception to this site's same-tab
+         rule (estate link policy §2b, 2026-10-13): they sit beside a form the
+         visitor may be halfway through, and leaving in this tab would lose it.
+         Each carries the cue: a visible external icon (aria-hidden) plus
+         "(opens in a new tab)" for screen readers. The main-site row's leading
+         icon is already the external arrow, so it gets no second one.
+         rel: GitHub/LinkedIn are third parties, so "noopener noreferrer"; the
+         main site is the estate's own, so "noopener" only — the weblog pipeline
+         needs the Referer to classify cross-site traffic. #}
       <ul class="contact-list">
         <li>
           <svg class="ico" aria-hidden="true"><use href="#i-mail"></use></svg>
@@ -20,17 +29,27 @@
         {% for s in feedback.socials %}
           <li>
             <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
-            <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer">{{ s.label }}</a>
+            <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer">
+              {{- s.label }}
+              <svg class="ico ico--xs" aria-hidden="true"><use href="#i-external"></use></svg>
+              <span class="sr-only">(opens in a new tab)</span>
+            </a>
           </li>
         {% endfor %}
         <li>
           <svg class="ico" aria-hidden="true"><use href="#i-external"></use></svg>
-          <a href="{{ site.main_site }}" target="_blank" rel="noopener noreferrer">dustincremascoli.com</a>
+          <a href="{{ site.main_site }}" target="_blank" rel="noopener">
+            {{- 'dustincremascoli.com' }}
+            <span class="sr-only">(opens in a new tab)</span>
+          </a>
         </li>
       </ul>
     </div>
 
-    <form class="contact-form" method="post" action="{{ url_for('main.feedback') }}">
+    {# data-unsaved-guard: site.js asks before leaving once anything has been
+       typed here and not sent. #}
+    <form class="contact-form" method="post" action="{{ url_for('main.feedback') }}"
+          data-unsaved-guard>
       {# No novalidate: the browser's own required/minlength/type=email
          checks give inline errors at the field, which is better than a
          round trip. Server-side validation still runs and is authoritative. #}

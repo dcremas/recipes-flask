@@ -26,7 +26,7 @@ SITE = {
         {"label": "GitHub", "href": "https://github.com/dcremas", "icon": "github"},
         {
             "label": "LinkedIn",
-            "href": "https://www.linkedin.com/in/dustin-cremascoli-662105423/",
+            "href": "https://www.linkedin.com/in/dustin-cremascoli-662105423",
             "icon": "linkedin",
         },
     ],
@@ -45,9 +45,11 @@ SITE = {
 # on. That entry is still a link; it just carries `aria-current="page"` and a
 # muted treatment, so the row is the same length on every site.
 #
-# Same-origin hrefs are RELATIVE on purpose: the footer template derives new-tab
-# behaviour from the href, so "Recipes" opens in this tab here and in a new one
-# everywhere else, with no per-site flag to keep in sync.
+# Every entry opens in the same tab (estate link policy, 2026-10-13): this is a
+# browsing site, so nothing is lost by leaving it. The same-origin href is
+# RELATIVE so it stays on whichever host served the page, and the footer
+# template compares it with request.path to decide whether aria-current is
+# "page" (you are on "/") or "true" (you are elsewhere on this site).
 #
 # THIS LIST IS DUPLICATED seven times across five repos with no shared package.
 # prosite_flask/content.py holds the canonical copy and names all seven;
@@ -124,7 +126,7 @@ FEEDBACK = {
         {"label": "GitHub", "href": "https://github.com/dcremas", "icon": "github"},
         {
             "label": "LinkedIn",
-            "href": "https://www.linkedin.com/in/dustin-cremascoli-662105423/",
+            "href": "https://www.linkedin.com/in/dustin-cremascoli-662105423",
             "icon": "linkedin",
         },
     ],

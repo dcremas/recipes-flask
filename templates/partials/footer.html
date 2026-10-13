@@ -16,8 +16,15 @@
    The rule that matters is that the two blocks stay in step: touch nav.html,
    touch this.
 
-   New-tab behaviour in row 2 is derived from the href, not from a flag: an href
-   starting with "http" is off-site and opens in a new tab. #}
+   Every link in all three rows opens in the same tab, other subdomains and
+   GitHub/LinkedIn included. This is a browsing site with nothing in memory to
+   lose, so forcing a new tab would only break Back (estate link policy,
+   2026-10-13: new tabs are for stateful apps, reference links beside an
+   unsaved form, and PDFs — see partials/feedback.html and recipe.html).
+
+   The current property's entry stays a link. As in prosite's footer,
+   aria-current is "page" only on the page its href names (Recipes -> "/") and
+   "true" everywhere else on this site. #}
 <footer class="site-footer">
   <div class="container">
 
@@ -54,19 +61,14 @@
         <p class="footer-nav-label" id="footer-nav-sites">{{ sites_label }}</p>
         <ul class="footer-nav-list" aria-labelledby="footer-nav-sites">
           {% for s in sites %}
-            {% set is_ext = s.href.startswith('http') %}
             {% set is_here = s.key == sites_current %}
+            {% set is_page = s.href == request.path %}
             <li>
               <a class="footer-nav-link footer-nav-link--site{% if is_here %} is-current{% endif %}"
                  href="{{ s.href }}"
-                 {% if is_here %}aria-current="page"{% endif %}
-                 {% if is_ext %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                 {% if is_page %}aria-current="page"{% elif is_here %}aria-current="true"{% endif %}>
                 <span class="nav-dot" aria-hidden="true"></span>
                 {{ s.label }}
-                {% if is_ext %}
-                  <svg class="ico ico--xs" aria-hidden="true"><use href="#i-external"></use></svg>
-                  <span class="sr-only">— opens in a new tab</span>
-                {% endif %}
                 {% if is_here %}<span class="sr-only">— you are here</span>{% endif %}
               </a>
             </li>
@@ -87,7 +89,7 @@
       <ul class="footer-links">
         {% for s in site.socials %}
           <li>
-            <a href="{{ s.href }}" target="_blank" rel="noopener noreferrer" aria-label="{{ s.label }}">
+            <a href="{{ s.href }}" aria-label="{{ s.label }}">
               <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
               <span>{{ s.label }}</span>
             </a>

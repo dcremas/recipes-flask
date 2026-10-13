@@ -41,8 +41,15 @@
     {% endif %}
 
     {# enctype is required for the photo field — without it the browser posts
-       filenames instead of file contents and uploads silently do nothing. #}
-    <form class="recipe-form" method="post" enctype="multipart/form-data" novalidate>
+       filenames instead of file contents and uploads silently do nothing.
+
+       data-unsaved-guard: site.js asks before leaving once a field differs
+       from what the page loaded with. data-unsaved-draft marks the form as
+       unsaved from the start — an import draft (a paid transcription that
+       exists nowhere but this page) or a POST re-rendered with errors (the
+       typing is in the fields, not the database). #}
+    <form class="recipe-form" method="post" enctype="multipart/form-data" novalidate
+          data-unsaved-guard{% if imported or request.method == 'POST' %} data-unsaved-draft{% endif %}>
       {{ form.hidden_tag() }}
       {{ form_errors(form) }}
 
