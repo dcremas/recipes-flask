@@ -71,6 +71,11 @@ SITES = [
     {"key": "plays", "label": "Play Explorer", "href": "https://pbp.dustincremascoli.com/plays/"},
     {"key": "typing", "label": "PromptPace", "href": "https://typing.dustincremascoli.com/"},
     {"key": "recipes", "label": "Recipes", "href": "/"},
+    # The three games joined the row 2026-10-25. They open in a new tab, the one
+    # exception to the same-tab rule above, as they do on www.
+    {"key": "mahjong", "label": "Mahjong Solitaire", "href": "https://mahjong.dustincremascoli.com/", "new_tab": True},
+    {"key": "dtiles", "label": "D-Tiles", "href": "https://dtiles.dustincremascoli.com/", "new_tab": True},
+    {"key": "solitaire", "label": "Solitaire", "href": "https://solitaire.dustincremascoli.com/", "new_tab": True},
 ]
 
 # Which entry in SITES is this codebase.

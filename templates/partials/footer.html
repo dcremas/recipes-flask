@@ -66,9 +66,14 @@
             <li>
               <a class="footer-nav-link footer-nav-link--site{% if is_here %} is-current{% endif %}"
                  href="{{ s.href }}"
-                 {% if is_page %}aria-current="page"{% elif is_here %}aria-current="true"{% endif %}>
+                 {% if is_page %}aria-current="page"{% elif is_here %}aria-current="true"{% endif %}
+                 {% if s.new_tab %}target="_blank" rel="noopener"{% endif %}>
                 <span class="nav-dot" aria-hidden="true"></span>
                 {{ s.label }}
+                {% if s.new_tab %}
+                  <svg class="ico ico--xs" aria-hidden="true"><use href="#i-external"></use></svg>
+                  <span class="sr-only">(opens in a new tab)</span>
+                {% endif %}
                 {% if is_here %}<span class="sr-only">— you are here</span>{% endif %}
               </a>
             </li>
