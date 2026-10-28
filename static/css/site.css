@@ -196,6 +196,10 @@ p  { text-wrap: pretty; }
   border-radius: 4px;
 }
 
+/* The SVG icon sprite in partials/icons.html: its <symbol>s are used, never shown.
+   A class rather than a style attribute, which the Content-Security-Policy forbids. */
+.icon-sprite { display: none; }
+
 .skip-link {
   position: absolute; left: -9999px; top: 0; z-index: 200;
   background: var(--accent); color: var(--accent-fg);

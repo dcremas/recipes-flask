@@ -26,14 +26,9 @@
 <link rel="preload" href="{{ url_for('static', filename='fonts/inter-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ 'css/site.css'|static_v }}">
 
-<script>
-  (function () {
-    try {
-      var t = localStorage.getItem('theme');
-      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-    } catch (e) {}
-  })();
-</script>
+{# The theme, set before first paint. In its own file because app.py hashes it
+   for the Content-Security-Policy: edit it there and the policy follows. #}
+<script>{% include "partials/boot.js" %}</script>
 
 {% block head %}{% endblock %}
 </head>

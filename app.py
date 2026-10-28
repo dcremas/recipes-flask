@@ -11,6 +11,8 @@ models/forms/routes in their own modules. Run with gunicorn in production; the
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import logging
 import os
 import secrets
@@ -204,7 +206,39 @@ def create_app(config: dict | None = None) -> Flask:
 
     _register_filters(app)
     _register_errors(app)
+    _register_csp(app)
     return app
+
+
+def _register_csp(app: Flask) -> None:
+    """A Content-Security-Policy on every HTML page Flask renders (added 2026-10-28).
+
+    The one inline script, partials/boot.js, is allowed by its SHA-256, computed
+    here from the same template the page includes, so editing it can never leave
+    the policy blocking it. Everything else is a file from this origin; there are
+    no inline style attributes (the icon sprite uses .icon-sprite).
+    Uploaded photos are served from this origin under /media/.
+    """
+    boot = app.jinja_env.get_template("partials/boot.js").render()
+    boot_hash = base64.b64encode(hashlib.sha256(boot.encode()).digest()).decode()
+    policy = "; ".join([
+        "default-src 'self'",
+        f"script-src 'self' 'sha256-{boot_hash}'",
+        "style-src 'self'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "frame-ancestors 'self'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+    ])
+
+    @app.after_request
+    def _csp(response):
+        if response.mimetype == "text/html":
+            response.headers.setdefault("Content-Security-Policy", policy)
+        return response
 
 
 def _register_filters(app: Flask) -> None:

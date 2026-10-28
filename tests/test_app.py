@@ -194,18 +194,44 @@ class TestPublicPages:
     def test_unknown_recipe_404s(self, client):
         assert client.get("/recipes/99999").status_code == 404
 
+    def test_csp_allows_exactly_the_inline_script_the_page_has(self, client):
+        """Content-Security-Policy (2026-10-28): every inline <script> on a page
+        must be covered by a hash in the policy, or the browser blocks it, and
+        there must be no inline style attributes, which the policy forbids."""
+        import base64
+        import hashlib
+        import re
+
+        for path in ("/", "/recipes", "/login", "/recipes/99999"):
+            resp = client.get(path)
+            policy = resp.headers["Content-Security-Policy"]
+            html = resp.get_data(as_text=True)
+            inline = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
+            assert inline, path
+            for body in inline:
+                digest = base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()
+                assert f"'sha256-{digest}'" in policy, path
+            assert ' style="' not in html, path
+        assert "Content-Security-Policy" not in client.get("/health").headers
+
     def test_category_filter(self, client):
         assert client.get("/recipes?category=Mexican").status_code == 200
 
     def test_footer_links_open_in_the_same_tab(self, client):
-        """Estate link policy (2026-10-13): a browsing site's footer never
-        forces a new tab, and "Recipes" is aria-current="page" only on "/"."""
+        """Estate link policy (2026-10-13): a browsing site's footer keeps you in
+        this tab, and "Recipes" is aria-current="page" only on "/". The exception
+        since 2026-10-25 is the three games, which open a new tab from every site."""
+        import re
+
+        games = sorted(f"https://{g}.dustincremascoli.com/" for g in ("mahjong", "dtiles", "solitaire"))
         sites_row = 'id="footer-nav-sites"'
         home = client.get("/").get_data(as_text=True).split("site-footer", 1)[1]
         other = client.get("/recipes").get_data(as_text=True).split("site-footer", 1)[1]
         for footer in (home, other):
-            assert 'target="_blank"' not in footer
-            assert "new tab" not in footer
+            new_tab = re.findall(r'<a\s[^>]*?href="([^"]+)"[^>]*?target="_blank"', footer)
+            assert sorted(new_tab) == games
+            assert footer.count('target="_blank"') == 3
+            assert footer.count("new tab") == 3
         assert 'aria-current="page"' in home.split(sites_row, 1)[1]
         assert 'aria-current="page"' not in other.split(sites_row, 1)[1]
         assert 'aria-current="true"' in other.split(sites_row, 1)[1]
