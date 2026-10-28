@@ -76,6 +76,7 @@ SITES = [
     {"key": "mahjong", "label": "Mahjong Solitaire", "href": "https://mahjong.dustincremascoli.com/", "new_tab": True},
     {"key": "dtiles", "label": "D-Tiles", "href": "https://dtiles.dustincremascoli.com/", "new_tab": True},
     {"key": "solitaire", "label": "Solitaire", "href": "https://solitaire.dustincremascoli.com/", "new_tab": True},
+    {"key": "sudoku", "label": "Sudoku", "href": "https://sudoku.dustincremascoli.com/", "new_tab": True},
 ]
 
 # Which entry in SITES is this codebase.

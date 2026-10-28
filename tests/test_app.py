@@ -220,18 +220,18 @@ class TestPublicPages:
     def test_footer_links_open_in_the_same_tab(self, client):
         """Estate link policy (2026-10-13): a browsing site's footer keeps you in
         this tab, and "Recipes" is aria-current="page" only on "/". The exception
-        since 2026-10-25 is the three games, which open a new tab from every site."""
+        since 2026-10-25 is the games, which open a new tab from every site."""
         import re
 
-        games = sorted(f"https://{g}.dustincremascoli.com/" for g in ("mahjong", "dtiles", "solitaire"))
+        games = sorted(f"https://{g}.dustincremascoli.com/" for g in ("mahjong", "dtiles", "solitaire", "sudoku"))
         sites_row = 'id="footer-nav-sites"'
         home = client.get("/").get_data(as_text=True).split("site-footer", 1)[1]
         other = client.get("/recipes").get_data(as_text=True).split("site-footer", 1)[1]
         for footer in (home, other):
             new_tab = re.findall(r'<a\s[^>]*?href="([^"]+)"[^>]*?target="_blank"', footer)
             assert sorted(new_tab) == games
-            assert footer.count('target="_blank"') == 3
-            assert footer.count("new tab") == 3
+            assert footer.count('target="_blank"') == 4
+            assert footer.count("new tab") == 4
         assert 'aria-current="page"' in home.split(sites_row, 1)[1]
         assert 'aria-current="page"' not in other.split(sites_row, 1)[1]
         assert 'aria-current="true"' in other.split(sites_row, 1)[1]
