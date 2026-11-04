@@ -1,6 +1,6 @@
 # Recipes
 
-The family recipe collection — **https://recipes.dustincremascoli.com**
+A recipe collection, free to browse and print — **https://recipes.dustincremascoli.com**
 
 A Flask app self-hosted on EC2 behind nginx. Public to read and print, authored
 only by the admin, with recipes that can be typed in or transcribed from a
