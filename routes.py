@@ -117,6 +117,17 @@ def _safe_next(target: str | None) -> str | None:
 # ---------------------------------------------------------------------------
 # Public pages
 # ---------------------------------------------------------------------------
+# IndexNow ownership file: lets a changed URL be pushed to Bing and the engines
+# that share its index for re-crawl. Public by design; same key as the main
+# site (prosite_flask/app.py INDEXNOW_KEY).
+INDEXNOW_KEY = "3ea4e28022e125f3facd8fd297fe334e"
+
+
+@bp.route(f"/{INDEXNOW_KEY}.txt")
+def indexnow_key():
+    return INDEXNOW_KEY, 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @bp.route("/")
 def home():
     # The original hardcoded six placeholder cards pointing at "#". These are
