@@ -133,7 +133,9 @@ def create_app(config: dict | None = None) -> Flask:
         FEEDBACK_ENABLED=os.getenv("FEEDBACK_ENABLED", "1") not in ("0", "false", "False"),
         MAIL_BACKEND=(os.getenv("MAIL_BACKEND") or "auto").strip().lower(),
         MAIL_FROM=os.getenv("MAIL_FROM"),
-        MAIL_TO=os.getenv("MAIL_TO") or "dustincremascoli@gmail.com",
+        # No hardcoded fallback since 2026-11-04: this repo is public. The
+        # server's recipes.env sets it (checked that day).
+        MAIL_TO=os.getenv("MAIL_TO"),
         # Same name and default as the main site. us-east-2 is where the
         # instance and the verified SES identity actually live.
         SES_REGION=os.getenv("SES_REGION", "us-east-2"),

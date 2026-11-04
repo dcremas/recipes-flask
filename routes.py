@@ -234,9 +234,9 @@ def feedback():
         flash("Thanks — your message is on its way.", "feedback_success")
     else:
         # Never claim it was emailed when it wasn't; it is on disk either way.
+        # No address here: none is published (2026-11-04).
         flash(
-            "Thanks — your message has been recorded and we'll take a look. "
-            f"You can also reach us directly at {current_app.config['MAIL_TO']}.",
+            "Thanks — your message has been recorded and we'll take a look.",
             "feedback_success",
         )
     return back

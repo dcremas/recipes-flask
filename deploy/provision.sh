@@ -76,8 +76,9 @@ ANTHROPIC_API_KEY=
 SESSION_COOKIE_SECURE=1
 FEEDBACK_ENABLED=1
 MAIL_BACKEND=auto
-MAIL_FROM=dustincremascoli@gmail.com
-MAIL_TO=dustincremascoli@gmail.com
+# MAIL_FROM must be an SES-verified identity; MAIL_TO is where feedback goes.
+MAIL_FROM=CHANGE_ME
+MAIL_TO=CHANGE_ME
 SES_REGION=us-east-2
 MESSAGES_FILE=/var/lib/recipes/feedback.jsonl
 EOF

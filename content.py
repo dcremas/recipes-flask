@@ -11,14 +11,17 @@ thing a visitor can still send, and FEEDBACK below is a working form rather than
 a description of one.
 """
 
+# 2026-11-04 (owner's call, matching the main site): the copy no longer names
+# the owner or the family. `owner` is used only for the footer copyright and
+# the author meta tag, as on www.
 SITE = {
     "name": "Recipes",
     "owner": "Dustin Cremascoli",
-    "tagline": "by Dustin Cremascoli and Family",
-    "title": "Recipes — Dustin Cremascoli and Family",
+    "tagline": "Free to browse and print",
+    "title": "Recipes — free to browse and print",
     "description": (
-        "A free and full repository of our family's favorite and best recipes. "
-        "Browse any of them, and print the ones you want to cook."
+        "A free collection of tried-and-true home recipes. Browse any of them, "
+        "and print the ones you want to cook."
     ),
     "url": "https://recipes.dustincremascoli.com",
     "main_site": "https://www.dustincremascoli.com",
@@ -85,8 +88,8 @@ SITES_CURRENT = "recipes"
 SITES_LABEL = "Everything here"
 
 HERO = {
-    "greeting": "Hi, I'm Dustin Cremascoli — and this is my recipe site.",
-    "lede": "A free and full repository of our family's favorite and best recipes.",
+    "greeting": "Tried-and-true recipes, free to browse and print.",
+    "lede": "A free and full repository of favorite home recipes.",
     "body": (
         "Feel free to browse, print and use any recipe you see here. Nothing is "
         "gated and nothing needs an account — this is meant to be a free spot to "
@@ -118,16 +121,15 @@ FEATURES = [
 # The feedback section at the foot of the home page. Mirrors the contact block on
 # dustincremascoli.com — same markup, same styles, same delivery chain.
 #
-# The address here is the one already published on the main site, deliberately
-# NOT the ADMIN_EMAIL used to sign in: publishing the login address would hand
-# out half of the admin credential for no benefit.
+# No email address since 2026-11-04: the form is the way in, as on the main
+# site, which no longer publishes one either. (Never publish ADMIN_EMAIL, the
+# sign-in address: it is half of the admin credential.)
 FEEDBACK = {
     "heading": "Tell us how a recipe turned out.",
     "body": (
         "Found a quantity that looks wrong, a step that needs explaining, or a "
-        "family recipe that belongs here? Send it along."
+        "recipe that belongs here? Send it along."
     ),
-    "email": "dustincremascoli@gmail.com",
     "socials": [
         {"label": "GitHub", "href": "https://github.com/dcremas", "icon": "github"},
         {

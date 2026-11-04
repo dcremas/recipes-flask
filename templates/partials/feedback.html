@@ -22,10 +22,6 @@
          main site is the estate's own, so "noopener" only — the weblog pipeline
          needs the Referer to classify cross-site traffic. #}
       <ul class="contact-list">
-        <li>
-          <svg class="ico" aria-hidden="true"><use href="#i-mail"></use></svg>
-          <a href="mailto:{{ feedback.email }}">{{ feedback.email }}</a>
-        </li>
         {% for s in feedback.socials %}
           <li>
             <svg class="ico" aria-hidden="true"><use href="#i-{{ s.icon }}"></use></svg>
