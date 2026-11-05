@@ -10,7 +10,7 @@ service behind the same nginx.
 | Service | `recipes-web.service` |
 | Socket | `/run/recipes/recipes.sock` |
 | nginx | `/etc/nginx/conf.d/recipes.conf` |
-| Database | `recipes` on the local Postgres, as role `recipes_app` |
+| Database | `recipes` on the box's own Postgres, as role `recipes_app` |
 | Logs | `journalctl -u recipes-web`, `/var/log/nginx/recipes.*.log` |
 
 ## The socket group, which is easy to get wrong

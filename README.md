@@ -232,7 +232,7 @@ DATABASE_URL=postgresql+psycopg:///recipes_test SECRET_KEY=dev SESSION_COOKIE_SE
   .venv/bin/python -c "from app import app; app.run(port=5090)"
 ```
 
-To exercise the admin UI locally you need a matching row — set a password on the
+To exercise the admin UI in development you need a matching row — set a password on the
 `ADMIN_EMAIL` account in the clone with `Authors.set_password()`. Don't leave a
 test account in the clone using an address the test suite also uses; the unique
 index on `lower(email)` will then break every fixture.
@@ -283,7 +283,7 @@ code queries a column that doesn't exist yet.
 Secrets live in `/etc/recipes/recipes.env` **on the server**, root-owned and
 group-readable by the service account. They are never rsynced — `deploy.sh`
 excludes `.env`, and `provision.sh` generates the session key on the server
-rather than accepting one from a laptop. `provision.sh` leaves an existing env
+rather than accepting one from a development machine. `provision.sh` leaves an existing env
 file alone, so new variables have to be added by hand.
 
 See `deploy/README-deploy.md` for server-side details.
